@@ -1,8 +1,6 @@
 const KEY="cham-cong-mobile-v1";
 let S=JSON.parse(localStorage.getItem(KEY)||"null")||{settings:{rate:26500,break:0.5,bonus:30,holidayRate:300},rows:[]};
-S.settings.syncUrl=S.settings.syncUrl||"https://script.google.com/macros/s/AKfycbzw0V5fZjGilaCkzLqZZ7ExZvLSMbcq8sPtq3tDnlT0MVcOBvt_CG1DEBxV1cPradg/exec";
-S.settings.syncKey=S.settings.syncKey||"";
-let syncTimer;
+if ("syncUrl" in S.settings || "syncKey" in S.settings) { delete S.settings.syncUrl; delete S.settings.syncKey; localStorage.setItem(KEY, JSON.stringify(S)); }
 const q=s=>document.querySelector(s),fmt=n=>new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(n||0),dec=n=>new Intl.NumberFormat("vi-VN",{maximumFractionDigits:2}).format(n||0);
 function min(t){if(!t)return 0;
 let p=t.split(":").map(Number);
@@ -10,19 +8,7 @@ return p[0]*60+p[1]}function calc(r){if(!r.start||!r.end)return{hours:0,night:0,
 let a=min(r.start),b=min(r.end);
 if(b<=a)b+=1440;
 let ov=(c,d)=>Math.max(0,Math.min(b,d)-Math.max(a,c)),night=(ov(0,120)+ov(1320,1440)+ov(1440,1560))/60,hours=Math.max(0,(b-a)/60-S.settings.break),base=hours*S.settings.rate*(r.holiday?S.settings.holidayRate/100:1);
-return{hours:hours,night:night,pay:base+night*S.settings.rate*S.settings.bonus/100}}function save(){localStorage.setItem(KEY,JSON.stringify(S));
-render();
-scheduleSync()}function scheduleSync(){clearTimeout(syncTimer);
-if(S.settings.syncUrl&&S.settings.syncKey)syncTimer=setTimeout(syncNow,1200)}async function syncNow(){const b=q("#sync"),status=q("#syncStatus");
-if(!S.settings.syncUrl||!S.settings.syncKey){status.textContent="Hãy nhập URL và khóa đồng bộ trong Thiết lập";
-q("#dlg").showModal();
-return}b.disabled=true;
-b.textContent="Đang đồng bộ…";
-try{await fetch(S.settings.syncUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"sync",key:S.settings.syncKey,rows:S.rows})});
-status.textContent="Đã gửi dữ liệu lên Google Sheet";
-status.className="sync-status ok"}catch(e){status.textContent="Không thể gửi dữ liệu. Hãy kiểm tra kết nối.";
-status.className="sync-status error"}finally{b.disabled=false;
-b.textContent="↻ Đồng bộ Sheet"}}function render(){let list=q("#list"),total=0,night=0;
+return{hours:hours,night:night,pay:base+night*S.settings.rate*S.settings.bonus/100}}function save(){localStorage.setItem(KEY,JSON.stringify(S));render()}function render(){let list=q("#list"),total=0,night=0;
 list.innerHTML="";
 S.rows.forEach(r=>{let c=calc(r);
 total+=c.pay;
@@ -47,11 +33,10 @@ S.settings.rate=Number(q("#rate").value);
 S.settings.break=Number(q("#break").value);
 S.settings.bonus=Number(q("#bonus").value);
 S.settings.holidayRate=Number(q("#holidayRate").value);
-S.settings.syncUrl=q("#syncUrl").value.trim();
-S.settings.syncKey=q("#syncKey").value.trim();
+
 q("#dlg").close();
 save()};
-q("#sync").onclick=syncNow;
+
 q("#clear").onclick=()=>{if(confirm("Xóa toàn bộ ca làm đã nhập?")){S.rows=[];
 save()}};
 q("#csv").onclick=()=>{let rows=[["Ngày","Giờ vào","Giờ ra","Giờ công","Giờ đêm","Lễ/Tết","Tiền lương"]];
@@ -63,6 +48,7 @@ a.download="cham-cong.csv";
 a.click();
 URL.revokeObjectURL(a.href)};
 render();
+
 
 
 

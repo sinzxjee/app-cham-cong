@@ -41,7 +41,6 @@
 <div class="bar">
 <button class="btn add" id="add">＋ Thêm ca làm</button>
 <button class="btn plain" id="csv">Xuất CSV</button>
-<button class="btn plain" id="sync">↻ Đồng bộ Sheet</button>
 <span class="grow">
 </span>
 <button class="btn danger" id="clear">Xóa tất cả</button>
@@ -71,11 +70,6 @@
 </label>
 <label>Hệ số lễ/Tết (%)<input id="holidayRate" type="number" min="100">
 </label>
-<label>URL Apps Script<input id="syncUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-</label>
-<label>Khóa đồng bộ<input id="syncKey" type="password" autocomplete="off">
-</label>
-<div id="syncStatus" class="sync-status">Chưa cấu hình đồng bộ</div>
 <p class="note">Ca đêm: 22:00–02:00. Khi tích Lễ/Tết, lương giờ công được nhân 300% và vẫn cộng phụ cấp đêm.</p>
 <div class="actions">
 <button class="btn plain" value="cancel">Hủy</button>
@@ -87,6 +81,7 @@
 </script>
 </body>
 </html>
+
 
 
 
