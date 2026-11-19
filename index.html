@@ -11,8 +11,8 @@
   <link rel="icon" href="app-icon.jpg" type="image/jpeg">
   <link rel="apple-touch-icon" href="app-icon.jpg">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=10">
-  <script src="app.js?v=10" defer></script>
+  <link rel="stylesheet" href="style.css?v=11">
+  <script src="app.js?v=11" defer></script>
 </head>
 <body>
   <main class="app">
@@ -23,22 +23,23 @@
       </button></div>
     </header>
 
-    <section class="overview" aria-label="Tổng lương và tiến độ mục tiêu">
+    <div class="tab-panels" id="tab-panels">
+    <section class="tab-panel active-tab-panel" id="today-panel" data-tab-panel="today" aria-label="Hôm nay">
+    <section class="overview" aria-label="Tổng lương kỳ hiện tại">
       <div class="overview-main"><span class="overline" id="scope-title">Tổng lương ước tính</span><strong id="total">0 ₫</strong><span class="local-note" id="scope-note">Tất cả thời gian · lưu trên trình duyệt này</span><span class="calc-note" id="calc-note"></span></div>
-      <div class="goal-widget">
-        <div class="goal-jar-wrap"><svg class="goal-jar" viewBox="0 0 120 180" role="img" aria-label="Hũ tiến độ mục tiêu">
-          <defs><clipPath id="jar-interior"><path d="M42 31h36c0 11 6 19 15 27 6 6 9 13 9 22v70c0 12-8 19-19 19H37c-11 0-19-7-19-19V80c0-9 3-16 9-22 9-8 15-16 15-27Z"/></clipPath></defs>
-          <path class="jar-glass" d="M39 27h42c0 12 7 21 17 30 7 6 10 14 10 24v70c0 15-10 24-25 24H37c-15 0-25-9-25-24V81c0-10 3-18 10-24 10-9 17-18 17-30Z"/>
-          <g id="jar-fill-group" class="jar-fill-group" clip-path="url(#jar-interior)"><rect id="jar-liquid" class="jar-liquid" x="18" y="31" width="84" height="138"/><path id="jar-wave" class="jar-wave" d=""/></g>
-          <path class="jar-outline" d="M39 27h42c0 12 7 21 17 30 7 6 10 14 10 24v70c0 15-10 24-25 24H37c-15 0-25-9-25-24V81c0-10 3-18 10-24 10-9 17-18 17-30Z"/>
-          <rect class="jar-neck" x="38" y="18" width="44" height="13" rx="3"/><rect class="jar-cap" x="35" y="4" width="50" height="17" rx="4"/>
-          <path class="jar-shine" d="M23 85v64c0 9 5 14 13 15"/>
-        </svg></div>
-        <div class="goal-copy"><span>Mục tiêu kỳ này</span><strong id="goal-percent">0%</strong><small id="goal-amount">2.500.000 ₫</small><div class="goal-presets" aria-label="Chọn nhanh mục tiêu"><button type="button" data-goal="1500000">1,5tr</button><button type="button" data-goal="2500000" aria-pressed="true">2,5tr</button><button type="button" data-goal="5000000">5tr</button></div></div>
-        <span class="goal-meter" id="goal-meter" role="progressbar" aria-label="Tiến độ mục tiêu lương" aria-valuemin="0" aria-valuemax="2500000" aria-valuenow="0" aria-valuetext="0 phần trăm"></span>
-      </div>
       <div class="overview-stats"><div><span>Ca đã ghi</span><strong id="count">0</strong></div><div><span>Giờ đêm</span><strong id="night">0</strong></div><div><span>Ca Lễ/Tết</span><strong id="holiday-count">0</strong></div></div>
     </section>
+
+    <section class="bento-grid" id="bento-grid" aria-label="Thẻ hôm nay, có thể kéo để sắp xếp">
+      <article class="bento-card clock-card" data-bento-card="clock"><div class="bento-card-head"><h2>Ca làm</h2><button class="bento-drag" type="button" data-drag-handle aria-label="Kéo để sắp xếp thẻ Ca làm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button></div><div class="clock-live" id="clock-live-time">--:--</div><p class="clock-state" id="clock-state">Chưa vào ca</p><p class="clock-elapsed" id="clock-elapsed"></p><div class="slide-track" id="shift-slider" role="group" aria-label="Trượt để vào ca"><span class="slide-progress"></span><button class="slide-handle" id="slide-handle" type="button" aria-label="Trượt để vào ca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button><span class="slide-label" id="slide-label">Trượt để vào ca</span></div><small class="clock-hint" id="clock-hint">Kéo nút sang phải để xác nhận</small></article>
+      <article class="bento-card goal-card" data-bento-card="goal"><div class="bento-card-head"><h2>Mục tiêu kỳ</h2><button class="bento-drag" type="button" data-drag-handle aria-label="Kéo để sắp xếp thẻ Mục tiêu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button></div><div class="goal-widget"><div class="goal-jar-wrap"><svg class="goal-jar" viewBox="0 0 120 180" role="img" aria-label="Hũ tiến độ mục tiêu"><defs><clipPath id="jar-interior"><path d="M42 31h36c0 11 6 19 15 27 6 6 9 13 9 22v70c0 12-8 19-19 19H37c-11 0-19-7-19-19V80c0-9 3-16 9-22 9-8 15-16 15-27Z"/></clipPath></defs><path class="jar-glass" d="M39 27h42c0 12 7 21 17 30 7 6 10 14 10 24v70c0 15-10 24-25 24H37c-15 0-25-9-25-24V81c0-10 3-18 10-24 10-9 17-18 17-30Z"/><g id="jar-fill-group" class="jar-fill-group" clip-path="url(#jar-interior)"><rect id="jar-liquid" class="jar-liquid" x="18" y="31" width="84" height="138"/><path id="jar-wave" class="jar-wave" d=""/></g><path class="jar-outline" d="M39 27h42c0 12 7 21 17 30 7 6 10 14 10 24v70c0 15-10 24-25 24H37c-15 0-25-9-25-24V81c0-10 3-18 10-24 10-9 17-18 17-30Z"/><rect class="jar-neck" x="38" y="18" width="44" height="13" rx="3"/><rect class="jar-cap" x="35" y="4" width="50" height="17" rx="4"/><path class="jar-shine" d="M23 85v64c0 9 5 14 13 15"/></svg></div><div class="goal-copy"><strong id="goal-percent">0%</strong><small id="goal-amount">2.500.000 ₫</small><div class="goal-presets" aria-label="Chọn nhanh mục tiêu"><button type="button" data-goal="1500000">1,5tr</button><button type="button" data-goal="2500000" aria-pressed="true">2,5tr</button><button type="button" data-goal="5000000">5tr</button></div></div><span class="goal-meter" id="goal-meter" role="progressbar" aria-label="Tiến độ mục tiêu lương" aria-valuemin="0" aria-valuemax="2500000" aria-valuenow="0" aria-valuetext="0 phần trăm"></span></div></article>
+      <article class="bento-card week-card" data-bento-card="week"><div class="bento-card-head"><div><h2>Tuần này</h2><span id="week-range"></span></div><button class="bento-drag" type="button" data-drag-handle aria-label="Kéo để sắp xếp thẻ Tuần này"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button></div><svg id="week-chart" class="week-chart" viewBox="0 0 420 140" role="img" aria-label="Lương theo ngày trong tuần"></svg></article>
+      <article class="bento-card note-card" data-bento-card="note"><div class="bento-card-head"><h2>Ghi chú</h2><button class="bento-drag" type="button" data-drag-handle aria-label="Kéo để sắp xếp thẻ Ghi chú"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button></div><label class="sr-only" for="work-note">Ghi chú trong kỳ lương</label><textarea id="work-note" rows="4" maxlength="500" placeholder="Ghi lại điều cần nhớ trong kỳ này…"></textarea><small id="note-save-status" aria-live="polite">Lưu trên trình duyệt này</small></article>
+    </section>
+    <section class="today-shifts"><div class="today-shifts-head"><h2>Ca hôm nay</h2><button class="primary" id="add-today" type="button">＋ Thêm ca</button></div><div id="today-list" class="shift-list" aria-live="polite"></div></section>
+    </section>
+
+    <section class="tab-panel" id="history-panel" data-tab-panel="history" aria-label="Lịch sử" hidden>
 
     <section class="work-section" aria-labelledby="work-title">
       <div class="section-head"><h2 id="work-title">Các ca làm</h2><div class="section-actions">
@@ -67,8 +68,21 @@
       <p class="view-note" id="view-note" aria-live="polite"></p>
       <div id="list" class="shift-list" aria-live="polite"></div>
     </section>
+    </section>
+    <section class="tab-panel stats-panel" id="stats-panel" data-tab-panel="stats" aria-labelledby="stats-title" hidden>
+      <h2 id="stats-title">Thống kê</h2>
+      <div class="stats-snap" id="stats-snap" aria-label="Thống kê kỳ lương, tuần và mục tiêu">
+        <article class="snap-card"><span>Kỳ lương hiện tại</span><strong id="snap-cycle-pay">0 ₫</strong><small id="snap-cycle-range"></small></article>
+        <article class="snap-card"><span>7 ngày gần nhất</span><strong id="snap-week-pay">0 ₫</strong><small id="snap-week-hours">0 giờ công</small></article>
+        <article class="snap-card"><span>Tiến độ mục tiêu</span><strong id="snap-goal-percent">0%</strong><small id="snap-goal-remaining">Còn 0 ₫</small></article>
+      </div>
+      <section class="stats-breakdown"><h3>Trong kỳ lương</h3><dl><div><dt>Số ca</dt><dd id="stats-count">0</dd></div><div><dt>Giờ công</dt><dd id="stats-hours">0</dd></div><div><dt>Giờ đêm</dt><dd id="stats-night">0</dd></div><div><dt>Ca Lễ/Tết</dt><dd id="stats-holiday">0</dd></div><div><dt>Lương giờ công</dt><dd id="stats-base">0 ₫</dd></div><div><dt>Cộng Lễ/Tết</dt><dd id="stats-holiday-pay">0 ₫</dd></div><div><dt>Phụ cấp đêm</dt><dd id="stats-night-pay">0 ₫</dd></div><div class="stats-total"><dt>Tổng ước tính</dt><dd id="stats-total">0 ₫</dd></div></dl></section>
+    </section>
+    </div>
     <footer class="app-footer">Dữ liệu chỉ lưu trên trình duyệt này · Hình bình: <a href="https://www.vecteezy.com/" target="_blank" rel="noopener noreferrer">Vecteezy.com</a></footer>
   </main>
+
+  <nav class="bottom-nav" aria-label="Điều hướng chính"><button type="button" data-tab="today" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1Z"/></svg><span>Hôm nay</span></button><button type="button" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg><span>Lịch sử</span></button><button type="button" data-tab="stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m8 10V4m8 15v-7"/></svg><span>Thống kê</span></button></nav>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toast-message"></span><button id="undo-delete" type="button" hidden>Hoàn tác</button></div>
 

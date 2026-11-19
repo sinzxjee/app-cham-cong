@@ -4,6 +4,7 @@ const q = selector => document.querySelector(selector);
 const money = value => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value || 0);
 const number = value => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value || 0);
 const dateKey = date => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+const timeKey = date => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 const today = () => dateKey(new Date());
 const validTime = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value || "");
 
@@ -12,6 +13,8 @@ try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { saved =
 const S = saved && typeof saved === "object" ? saved : { settings: {}, rows: [], templates: [] };
 S.settings = { ...defaults, ...(S.settings || {}) };
 S.preferences = { theme: "light", ...(S.preferences || {}) };
+S.preferences.bentoOrder = Array.isArray(S.preferences.bentoOrder) ? S.preferences.bentoOrder : [];
+S.notes = S.notes && typeof S.notes === "object" ? S.notes : {};
 S.rows = Array.isArray(S.rows) ? S.rows.filter(row => row && typeof row === "object") : [];
 S.templates = Array.isArray(S.templates) ? S.templates.filter(template => template && typeof template === "object") : [];
 S.rows.forEach(row => { if (!row.id) row.id = crypto.randomUUID(); });
@@ -28,6 +31,8 @@ let calendarOpen = false;
 let undoState = null;
 let toastTimer;
 let deferredInstallPrompt = null;
+let activeTab = "today";
+let noteTimer;
 
 function minutes(value) {
   const [hour = 0, minute = 0] = String(value || "").split(":").map(Number);
@@ -80,6 +85,9 @@ function calculate(shift) {
 }
 function isComplete(shift) {
   return Boolean(shift.date && shift.start && shift.end);
+}
+function isClockActive(shift) {
+  return Boolean(shift && (shift.clockState === "work" || shift.clockState === "break") && !shift.end);
 }
 function isValidDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return false;
@@ -156,9 +164,133 @@ function updateGoal(total) {
   q("#jar-liquid").style.opacity = fill ? "1" : "0";
   document.querySelectorAll("[data-goal]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.goal) === goal)));
 }
+function currentClockShift() { return S.rows.find(row => (row.clockState === "work" || row.clockState === "break") && !row.end); }
+function clockElapsed(shift, now = Date.now()) {
+  const start = new Date(shift.clockStartedAt).getTime();
+  if (!Number.isFinite(start)) return "00:00";
+  const paused = (Array.isArray(shift.breaks) ? shift.breaks.reduce((sum, item) => sum + Math.max(0, new Date(item.end).getTime() - new Date(item.start).getTime()), 0) : 0) + (shift.breakStartedAt ? Math.max(0, now - new Date(shift.breakStartedAt).getTime()) : 0);
+  const elapsed = Math.max(0, Math.floor((now - start - paused) / 60000));
+  return `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+}
+function renderClock() {
+  const now = new Date();
+  q("#clock-live-time").textContent = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(now);
+  const active = currentClockShift();
+  const track = q("#shift-slider");
+  const actionLabel = active ? "Trượt để kết thúc ca" : "Trượt để vào ca";
+  q("#clock-state").textContent = !active ? "Chưa vào ca" : active.clockState === "break" ? "Đang nghỉ" : "Đang làm";
+  q("#clock-elapsed").textContent = active ? `Đã làm ${clockElapsed(active)}` : "Ghi ca bằng thao tác trượt";
+  track.setAttribute("aria-label", actionLabel);
+  q("#slide-handle").setAttribute("aria-label", actionLabel);
+  q("#slide-label").textContent = actionLabel;
+  q("#clock-hint").textContent = active ? `Vào ca lúc ${active.start} · kéo hết thanh để kết thúc` : "Kéo nút sang phải để xác nhận";
+}
+function handleClockAction() {
+  const now = new Date();
+  const active = currentClockShift();
+  if (!active) {
+    const shift = { id: crypto.randomUUID(), date: dateKey(now), start: timeKey(now), end: "", holiday: false, clockState: "work", clockStartedAt: now.toISOString(), breakMinutes: Number(S.settings.break) * 60, breaks: [] };
+    S.rows.push(shift);
+    allTime = false;
+    selectedDate = null;
+    activeFilter = "all";
+    q("#month-filter").value = dateKey(now).slice(0, 7);
+    if (save()) showToast(`Đã vào ca lúc ${shift.start}`);
+    return;
+  }
+  active.end = timeKey(now);
+  active.clockEndedAt = now.toISOString();
+  active.clockState = "done";
+  if (save()) showToast(`Đã kết thúc ca lúc ${active.end}`);
+}
+function renderTodayShifts() {
+  const list = q("#today-list");
+  const rows = S.rows.filter(shift => shift.date === today()).slice().sort((a, b) => String(a.start || "").localeCompare(String(b.start || "")));
+  list.replaceChildren();
+  if (!rows.length) {
+    list.innerHTML = '<div class="today-empty"><span>Chưa ghi ca nào hôm nay.</span><button type="button" class="secondary" data-add-from-empty>Thêm ca thủ công</button></div>';
+    list.querySelector("[data-add-from-empty]").addEventListener("click", () => addShift());
+    return;
+  }
+  rows.forEach(shift => {
+    const result = calculate(shift);
+    const card = document.createElement("article");
+    card.className = `today-shift${isComplete(shift) ? "" : " incomplete"}`;
+    card.innerHTML = `<span class="today-shift-time">${safe(shift.start || "--:--")}–${safe(shift.end || "--:--")}</span><span class="today-shift-meta">${shift.holiday ? "Lễ/Tết · " : ""}${isComplete(shift) ? `${number(result.hours)} giờ công` : "Đang ghi ca"}</span><strong>${isComplete(shift) ? money(result.pay) : "Đang làm"}</strong>`;
+    list.append(card);
+  });
+}
+function cycleNoteKey() { const bounds = payCycle(); return `${bounds.start}_${bounds.end}`; }
+function renderStats() {
+  const rows = periodRows();
+  const complete = rows.filter(isComplete);
+  const results = complete.map(calculate);
+  const total = results.reduce((sum, item) => sum + item.pay, 0);
+  const base = results.reduce((sum, item) => sum + item.basePay, 0);
+  const holidayPay = results.reduce((sum, item) => sum + item.holidayExtra, 0);
+  const nightPay = results.reduce((sum, item) => sum + item.nightPay, 0);
+  const hours = results.reduce((sum, item) => sum + item.hours, 0);
+  const nightHours = results.reduce((sum, item) => sum + item.night, 0);
+  const goal = Number(S.settings.goal) || defaults.goal;
+  const period = cycleName();
+  const weekRows = S.rows.filter(shift => isComplete(shift) && weekRange().includes(shift.date));
+  const weekPay = weekRows.reduce((sum, shift) => sum + calculate(shift).pay, 0);
+  q("#snap-cycle-pay").textContent = money(total);
+  q("#snap-cycle-range").textContent = period;
+  q("#snap-week-pay").textContent = money(weekPay);
+  q("#snap-week-hours").textContent = `${number(weekRows.reduce((sum, shift) => sum + calculate(shift).hours, 0))} giờ công`;
+  q("#snap-goal-percent").textContent = `${Math.round(total / goal * 100)}%`;
+  q("#snap-goal-remaining").textContent = total >= goal ? "Đã đạt mục tiêu" : `Còn ${money(goal - total)}`;
+  q("#stats-count").textContent = String(rows.length);
+  q("#stats-hours").textContent = number(hours);
+  q("#stats-night").textContent = number(nightHours);
+  q("#stats-holiday").textContent = String(rows.filter(row => row.holiday).length);
+  q("#stats-base").textContent = money(base);
+  q("#stats-holiday-pay").textContent = money(holidayPay);
+  q("#stats-night-pay").textContent = money(nightPay);
+  q("#stats-total").textContent = money(total);
+}
+function weekRange() {
+  const cursor = new Date(`${today()}T12:00:00`);
+  cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, index) => { const date = new Date(cursor); date.setDate(cursor.getDate() + index); return dateKey(date); });
+}
+function renderWeekChart() {
+  const dates = weekRange();
+  const totals = dates.map(date => S.rows.filter(shift => isComplete(shift) && shift.date === date).reduce((sum, shift) => sum + calculate(shift).pay, 0));
+  const max = Math.max(...totals, 1);
+  const labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  const xStart = 28, gap = 56, barWidth = 30, baseY = 105, maxHeight = 70;
+  const bars = totals.map((pay, index) => {
+    const height = pay ? Math.max(4, pay / max * maxHeight) : 2;
+    const x = xStart + index * gap;
+    const fill = dates[index] === today() ? "var(--accent)" : "var(--chart-muted)";
+    return `<rect x="${x}" y="${baseY - height}" width="${barWidth}" height="${height}" rx="6" fill="${fill}"><title>${labels[index]}: ${money(pay)}</title></rect><text class="week-chart-label" x="${x + barWidth / 2}" y="128" text-anchor="middle">${labels[index]}</text>`;
+  }).join("");
+  const monday = dates[0].slice(8, 10) + "/" + dates[0].slice(5, 7);
+  const sunday = dates[6].slice(8, 10) + "/" + dates[6].slice(5, 7);
+  q("#week-range").textContent = `${monday}–${sunday}`;
+  q("#week-chart").innerHTML = `<title>Lương theo ngày trong tuần</title><line class="week-chart-baseline" x1="18" y1="106" x2="410" y2="106"/>${bars}`;
+}
+function applyBentoOrder() {
+  const grid = q("#bento-grid");
+  const order = S.preferences.bentoOrder;
+  const rank = new Map(order.map((name, index) => [name, index]));
+  [...grid.children].sort((a, b) => (rank.get(a.dataset.bentoCard) ?? 999) - (rank.get(b.dataset.bentoCard) ?? 999)).forEach(card => grid.append(card));
+}
+function saveBentoOrder() {
+  S.preferences.bentoOrder = [...q("#bento-grid").querySelectorAll("[data-bento-card]")].map(card => card.dataset.bentoCard);
+  persist();
+}
+function renderNote() {
+  const key = cycleNoteKey();
+  const field = q("#work-note");
+  if (document.activeElement !== field) field.value = S.notes[key] || "";
+}
 function applyTheme() {
   const dark = S.preferences.theme === "dark";
   document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.documentElement.style.colorScheme = dark ? "dark" : "light";
   const button = q("#theme-toggle");
   button.setAttribute("aria-label", dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối");
   button.title = dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối";
@@ -188,8 +320,12 @@ function refreshSummary() {
   document.querySelectorAll("[data-filter]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.filter === activeFilter)));
   updateGoal(total);
   renderHeatmap();
+  renderStats();
+  renderWeekChart();
+  renderNote();
 }
 function rowStatus(shift) {
+  if (isClockActive(shift)) return shift.clockState === "break" ? "Đang nghỉ · chưa tính lương" : "Đang làm · chưa tính lương";
   if (!shift.date) return "Thiếu ngày";
   if (!shift.start || !shift.end) return "Nhập giờ vào và giờ ra để tính lương";
   return "Đã tính lương";
@@ -199,8 +335,9 @@ function updateCard(card, shift) {
   const complete = isComplete(shift);
   const status = card.querySelector(".status");
   card.classList.toggle("is-incomplete", !complete);
+  card.classList.toggle("is-running", isClockActive(shift));
   status.className = `status ${complete ? "complete" : "pending"}`;
-  status.textContent = complete ? "Đã tính" : "Thiếu thông tin";
+  status.textContent = isClockActive(shift) ? "Đang làm" : complete ? "Đã tính" : "Thiếu thông tin";
   card.querySelector(".remove").setAttribute("aria-label", `Xóa ca ngày ${shift.date || "chưa chọn"}`);
   card.querySelector(".shift-pay-label").textContent = complete ? "Tiền ca này" : rowStatus(shift);
   card.querySelector(".shift-pay strong").textContent = complete ? money(result.pay) : "—";
@@ -211,6 +348,7 @@ function updateCard(card, shift) {
   card.querySelector("[data-pay=holiday]").textContent = money(result.holidayExtra);
   card.querySelector("[data-pay=night]").textContent = money(result.nightPay);
   card.querySelector(".pay-details").hidden = !complete;
+  card.querySelectorAll("input[type=date],input[type=time]").forEach(input => { input.disabled = isClockActive(shift); });
 }
 function renderList() {
   const list = q("#list");
@@ -229,7 +367,7 @@ function renderList() {
     card.dataset.start = String(shift.start || "");
     card.innerHTML = `<div class="shift-top">
       <div class="shift-date"><label for="date-${safe(shift.id)}">Ngày</label><input id="date-${safe(shift.id)}" type="date" data-k="date" value="${safe(shift.date)}"></div>
-      <span class="status ${complete ? "complete" : "pending"}">${complete ? "Đã tính" : "Thiếu thông tin"}</span>
+      <span class="status ${complete ? "complete" : "pending"}">${isClockActive(shift) ? "Đang làm" : complete ? "Đã tính" : "Thiếu thông tin"}</span>
       <button type="button" class="remove" aria-label="Xóa ca ngày ${safe(shift.date || "chưa chọn")}" title="Xóa ca làm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6m4-6v6M6.5 7l.8 13h9.4l.8-13M9 7V4h6v3"/></svg></button>
     </div>
     <div class="shift-fields">
@@ -259,7 +397,7 @@ function renderList() {
   });
   if (!shown.length) {
     const hasAny = periodRows().length > 0;
-    list.innerHTML = `<div class="empty"><strong>${hasAny ? "Không có ca khớp bộ lọc" : "Chưa có ca trong kỳ này"}</strong><p>${hasAny ? "Thử đổi loại ca, ngày hoặc chọn kỳ khác." : "Bấm “Vào ca” hoặc thêm ca thủ công để bắt đầu."}</p></div>`;
+    list.innerHTML = `<div class="empty"><strong>${hasAny ? "Không có ca khớp bộ lọc" : "Chưa có ca trong kỳ này"}</strong><p>${hasAny ? "Thử đổi loại ca, ngày hoặc chọn kỳ khác." : "Vào tab Hôm nay để ghi ca, hoặc thêm ca thủ công."}</p></div>`;
   }
 }
 function renderTemplates() {
@@ -384,8 +522,10 @@ function addShift(mode = "blank", template = null) {
   if (!save()) return;
   const card = [...q("#list").querySelectorAll(".shift-card")].find(item => item.dataset.shiftId === String(shift.id));
   const startInput = card?.querySelector('[data-k="start"]');
-  startInput?.focus();
-  startInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (activeTab === "history") {
+    startInput?.focus();
+    startInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
   const message = template ? `Đã thêm ca theo mẫu “${template.name}” · kiểm tra ngày và Lễ/Tết` : mode === "repeat" && previous ? "Đã lặp giờ ca trước · kiểm tra ngày và Lễ/Tết" : "Ca mới đã thêm · nhập giờ để tính lương";
   showToast(message);
 }
@@ -413,10 +553,31 @@ function undoDelete() {
 }
 function render() {
   applyTheme();
+  applyBentoOrder();
   refreshSummary();
+  renderClock();
+  renderTodayShifts();
   renderTemplates();
   renderCalendar();
   renderList();
+}
+function activateTab(name) {
+  const update = () => {
+    activeTab = name;
+    document.querySelectorAll("[data-tab-panel]").forEach(panel => {
+      panel.hidden = panel.dataset.tabPanel !== name;
+      panel.classList.toggle("active-tab-panel", !panel.hidden);
+    });
+    document.querySelectorAll("[data-tab]").forEach(button => {
+      if (button.dataset.tab === name) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    });
+    if (name === "history") { renderCalendar(); renderList(); }
+    if (name === "today") { renderTodayShifts(); renderClock(); }
+  };
+  if (activeTab === name) return;
+  if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(update);
+  else update();
 }
 function openTemplates() {
   renderTemplates();
@@ -446,7 +607,7 @@ function exportCSV() {
   downloadFile(`cham-cong-${allTime ? "tat-ca" : q("#month-filter").value}.csv`, "text/csv;charset=utf-8", "\ufeff" + rows.map(row => row.map(csvCell).join(",")).join("\r\n"));
 }
 function exportBackup() {
-  const backup = { app: "cham-cong-mobile", version: 2, exportedAt: new Date().toISOString(), settings: S.settings, templates: S.templates, rows: S.rows };
+  const backup = { app: "cham-cong-mobile", version: 3, exportedAt: new Date().toISOString(), settings: S.settings, preferences: S.preferences, notes: S.notes, templates: S.templates, rows: S.rows };
   downloadFile(`sao-luu-cham-cong-${today()}.json`, "application/json;charset=utf-8", JSON.stringify(backup, null, 2));
   showToast("Đã tạo bản sao lưu toàn bộ dữ liệu");
 }
@@ -488,6 +649,8 @@ function importBackup(file) {
       S.rows.push(...additions);
       S.templates.push(...newTemplates);
       S.settings = nextSettings;
+      if (backup.preferences && typeof backup.preferences === "object") S.preferences = { ...S.preferences, ...backup.preferences };
+      if (backup.notes && typeof backup.notes === "object") S.notes = { ...S.notes, ...backup.notes };
       setPeriodToAll();
       if (save()) showToast(`Đã nhập ${additions.length} ca và ${newTemplates.length} mẫu`);
     } catch {
@@ -523,6 +686,98 @@ function installApp() {
 }
 
 document.addEventListener("click", event => { if (!q("#more").contains(event.target)) q("#more").open = false; });
+document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => activateTab(button.dataset.tab)));
+q("#add-today").addEventListener("click", () => addShift());
+q("#work-note").addEventListener("input", event => {
+  const key = cycleNoteKey();
+  S.notes[key] = event.target.value;
+  q("#note-save-status").textContent = "Lưu…";
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => {
+    q("#note-save-status").textContent = persist() ? "Đã lưu trên trình duyệt này" : "Không lưu được";
+  }, 350);
+});
+q("#work-note").addEventListener("blur", () => {
+  clearTimeout(noteTimer);
+  q("#note-save-status").textContent = persist() ? "Đã lưu trên trình duyệt này" : "Không lưu được";
+});
+q("#bento-grid").addEventListener("pointerdown", event => {
+  const handle = event.target.closest("[data-drag-handle]");
+  const card = handle?.closest("[data-bento-card]");
+  if (!handle || !card || event.button > 0) return;
+  card.setPointerCapture?.(event.pointerId);
+  card.classList.add("dragging");
+  card.dataset.dragPointer = String(event.pointerId);
+  event.preventDefault();
+});
+q("#bento-grid").addEventListener("pointermove", event => {
+  const card = event.target.closest("[data-bento-card]");
+  if (!card?.classList.contains("dragging") || card.dataset.dragPointer !== String(event.pointerId)) return;
+  const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-bento-card]");
+  if (!target || target === card) return;
+  const bounds = target.getBoundingClientRect();
+  target.insertAdjacentElement(event.clientY < bounds.top + bounds.height / 2 ? "beforebegin" : "afterend", card);
+});
+q("#bento-grid").addEventListener("pointerup", event => {
+  const card = [...q("#bento-grid").children].find(item => item.dataset.dragPointer === String(event.pointerId));
+  if (!card) return;
+  card.classList.remove("dragging");
+  delete card.dataset.dragPointer;
+  saveBentoOrder();
+});
+q("#bento-grid").addEventListener("pointercancel", event => {
+  const card = [...q("#bento-grid").children].find(item => item.dataset.dragPointer === String(event.pointerId));
+  if (card) { card.classList.remove("dragging"); delete card.dataset.dragPointer; }
+});
+q("#bento-grid").addEventListener("keydown", event => {
+  if (!event.target.closest("[data-drag-handle]") || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+  event.preventDefault();
+  const card = event.target.closest("[data-bento-card]");
+  const sibling = event.key === "ArrowUp" ? card.previousElementSibling : card.nextElementSibling;
+  if (sibling) { q("#bento-grid").insertBefore(card, event.key === "ArrowUp" ? sibling : sibling.nextElementSibling); saveBentoOrder(); }
+});
+let slideProgress = 0;
+let sliderPointer = null;
+let suppressSliderClickUntil = 0;
+const slider = q("#shift-slider");
+const sliderHandle = q("#slide-handle");
+function resetSlider() {
+  slideProgress = 0;
+  slider.style.setProperty("--slide-x", "0px");
+  slider.style.setProperty("--slide-progress", "0%");
+  slider.classList.remove("is-dragging");
+  slider.setAttribute("aria-valuenow", "0");
+}
+slider.addEventListener("pointerdown", event => {
+  if (!event.target.closest("#slide-handle") || (event.pointerType === "mouse" && event.button !== 0)) return;
+  sliderPointer = event.pointerId;
+  slider.classList.add("is-dragging");
+  slider.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+slider.addEventListener("pointermove", event => {
+  if (event.pointerId !== sliderPointer) return;
+  const rect = slider.getBoundingClientRect();
+  const max = Math.max(1, rect.width - sliderHandle.offsetWidth - 10);
+  const x = Math.max(0, Math.min(max, event.clientX - rect.left - sliderHandle.offsetWidth / 2 - 5));
+  slideProgress = x / max;
+  slider.style.setProperty("--slide-x", `${x}px`);
+  slider.style.setProperty("--slide-progress", `${slideProgress * 100}%`);
+  slider.setAttribute("aria-valuenow", String(Math.round(slideProgress * 100)));
+});
+slider.addEventListener("pointerup", event => {
+  if (event.pointerId !== sliderPointer) return;
+  const confirmed = slideProgress >= 0.82;
+  sliderPointer = null;
+  suppressSliderClickUntil = Date.now() + 500;
+  resetSlider();
+  if (confirmed) handleClockAction();
+});
+slider.addEventListener("pointercancel", () => { sliderPointer = null; resetSlider(); });
+sliderHandle.addEventListener("click", event => {
+  if (event.detail !== 0 || Date.now() < suppressSliderClickUntil) { event.preventDefault(); return; }
+  handleClockAction();
+});
 q("#gear").addEventListener("click", () => {
   for (const key of Object.keys(defaults)) q("#" + key).value = S.settings[key];
   q("#dlg").showModal();
@@ -582,8 +837,10 @@ window.addEventListener("offline", updateNetworkStatus);
 window.addEventListener("beforeinstallprompt", event => { event.preventDefault(); deferredInstallPrompt = event; });
 window.addEventListener("appinstalled", () => { deferredInstallPrompt = null; showToast("Đã cài ứng dụng."); });
 q("#month-filter").value = today().slice(0, 7);
+applyBentoOrder();
 render();
 updateNetworkStatus();
+setInterval(renderClock, 1000);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => showToast("Chế độ offline chưa khả dụng trên trình duyệt này."));
 }

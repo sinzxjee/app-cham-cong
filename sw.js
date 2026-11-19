@@ -1,5 +1,5 @@
-const CACHE = "cham-cong-shell-v10";
-const SHELL = ["./", "./index.html", "./style.css?v=10", "./app.js?v=10", "./manifest.webmanifest", "./app-icon.jpg"];
+const CACHE = "cham-cong-shell-v11";
+const SHELL = ["./", "./index.html", "./style.css?v=11", "./app.js?v=11", "./manifest.webmanifest", "./app-icon.jpg"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -25,6 +25,7 @@ self.addEventListener("fetch", event => {
     return response;
   })));
 });
+
 
 
 
