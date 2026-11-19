@@ -167,15 +167,22 @@ function updateGoal() {
   const percent = Math.round(ratio * 100);
   const fill = Math.min(1, ratio);
   const jar = q(".goal-jar");
-  const amountChanged = lastGoalTotal === null ? fill > 0 : total !== lastGoalTotal;
+  const group = q("#jar-fill-group");
+  const firstGoalRender = lastGoalTotal === null;
+  const amountChanged = firstGoalRender ? fill > 0 : total !== lastGoalTotal;
   if (amountChanged && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     jar.classList.remove("is-sloshing");
     void jar.getBoundingClientRect();
     jar.classList.add("is-sloshing");
   }
   lastGoalTotal = total;
-  const group = q("#jar-fill-group");
-  if (group) group.style.setProperty("--fill-scale", String(fill));
+  if (group) {
+    const waterOffset = `${(1 - fill) * 138}px`;
+    if (firstGoalRender) {
+      group.style.setProperty("--water-offset", "138px");
+      requestAnimationFrame(() => group.style.setProperty("--water-offset", waterOffset));
+    } else group.style.setProperty("--water-offset", waterOffset);
+  }
   q("#goal-percent").textContent = `${percent}%`;
   q("#goal-amount").textContent = money(goal);
   const meter = q("#goal-meter");
@@ -213,8 +220,10 @@ function updateGoal() {
   }
   if (goalWasComplete === false && ratio >= 1) celebrateGoal();
   goalWasComplete = ratio >= 1;
-  q("#jar-wave").setAttribute("d", "M18 36 C31 31 44 40 59 35 S86 31 102 36 V45 C88 41 73 41 59 45 S32 43 18 45Z");
+  q("#jar-wave").setAttribute("d", "M18 38 C29 35 40 35 51 38 S73 41 85 38 S97 35 102 38 L102 45 L18 45Z");
+  q("#jar-wave-glint").setAttribute("d", "M21 38 C32 35.5 42 35.5 53 38 S75 40.5 87 38 S98 36 102 38");
   q("#jar-wave").style.opacity = fill ? "1" : "0";
+  q("#jar-wave-glint").style.opacity = fill ? "0.52" : "0";
   q("#jar-liquid").style.opacity = fill ? "1" : "0";
   document.querySelectorAll("[data-goal]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.goal) === goal)));
 }
