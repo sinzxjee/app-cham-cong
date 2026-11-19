@@ -1,5 +1,5 @@
-const CACHE = "cham-cong-shell-v27";
-const SHELL = ["./", "./index.html", "./style.css?v=27", "./app.js?v=27", "./manifest.webmanifest", "./app-icon.jpg"];
+const CACHE = "cham-cong-shell-v28";
+const SHELL = ["./", "./index.html", "./style.css?v=28", "./app.js?v=28", "./manifest.webmanifest", "./app-icon.jpg"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -885,7 +885,44 @@ q("#theme-toggle").addEventListener("click", () => {
     showToast(`Đã chuyển sang giao diện ${S.preferences.theme === "dark" ? "tối" : "sáng"}`);
   } else root.classList.remove("theme-fade");
 });
-document.querySelectorAll("[data-goal]").forEach(button => button.addEventListener("click", () => {
+const gyroToggle = q("#jar-gyro-toggle");
+let gyroActive = false;
+let gyroOffset = 0;
+function handleDeviceTilt(event) {
+  if (!Number.isFinite(event.gamma)) return;
+  const target = Math.max(-10, Math.min(10, event.gamma / 40 * 10));
+  gyroOffset += (target - gyroOffset) * 0.18;
+  q(".goal-jar").style.setProperty("--gyro-shift", `${gyroOffset.toFixed(2)}px`);
+}
+function stopGyro() {
+  window.removeEventListener("deviceorientation", handleDeviceTilt);
+  gyroActive = false;
+  gyroOffset = 0;
+  q(".goal-jar").style.setProperty("--gyro-shift", "0px");
+  gyroToggle.textContent = "Gyro";
+  gyroToggle.setAttribute("aria-pressed", "false");
+  gyroToggle.setAttribute("aria-label", "Bật sóng theo cảm biến nghiêng");
+  gyroToggle.title = "Bật sóng theo cảm biến nghiêng";
+}
+gyroToggle.addEventListener("click", async () => {
+  if (gyroActive) { stopGyro(); showToast("Đã tắt cảm biến nghiêng."); return; }
+  if (!("DeviceOrientationEvent" in window)) { showToast("Điện thoại này không hỗ trợ cảm biến nghiêng."); return; }
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {
+      const permission = await DeviceOrientationEvent.requestPermission();
+      if (permission !== "granted") { showToast("Chưa được cấp quyền cảm biến nghiêng."); return; }
+    }
+    window.addEventListener("deviceorientation", handleDeviceTilt, { passive: true });
+    gyroActive = true;
+    gyroToggle.textContent = "Gyro bật";
+    gyroToggle.setAttribute("aria-pressed", "true");
+    gyroToggle.setAttribute("aria-label", "Tắt sóng theo cảm biến nghiêng");
+    gyroToggle.title = "Tắt sóng theo cảm biến nghiêng";
+    showToast("Đã bật sóng theo độ nghiêng điện thoại.");
+  } catch {
+    showToast("Không thể bật cảm biến. Hãy kiểm tra quyền Motion & Orientation trong trình duyệt.");
+  }
+});document.querySelectorAll("[data-goal]").forEach(button => button.addEventListener("click", () => {
   S.settings.goal = Number(button.dataset.goal);
   save();
   showToast(`Mục tiêu kỳ này: ${money(S.settings.goal)}`);
