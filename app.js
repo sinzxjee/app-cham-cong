@@ -155,8 +155,13 @@ function cycleName() {
   return `Kỳ ${format(start)} – ${format(end)}`;
 }
 function scopeName() { return allTime || !q("#month-filter").value ? "Tất cả thời gian" : cycleName(); }
-function updateGoal(total) {
+function updateGoal() {
   const goal = Math.max(1, Number(S.settings.goal) || defaults.goal);
+  const bounds = payCycle();
+  const cycleRows = S.rows.filter(shift => String(shift.date || "") >= bounds.start && String(shift.date || "") <= bounds.end);
+  const completed = cycleRows.filter(isComplete).map(calculate);
+  const total = completed.reduce((sum, result) => sum + result.pay, 0);
+  const completeHours = completed.reduce((sum, result) => sum + result.hours, 0);
   const ratio = Math.max(0, total / goal);
   const percent = Math.round(ratio * 100);
   const fill = Math.min(1, ratio);
@@ -170,13 +175,30 @@ function updateGoal(total) {
   meter.setAttribute("aria-valuetext", `${percent}% mục tiêu, ${money(total)} trên ${money(goal)}`);
   q("#goal-meter").dataset.complete = String(ratio >= 1);
   q("#goal-progress-fill").style.width = (fill * 100) + "%";
+
   const remaining = Math.max(0, goal - total);
-  const completeHours = periodRows().filter(isComplete).map(calculate).reduce((sum, result) => sum + result.hours, 0);
   const hourlyAverage = completeHours > 0 ? total / completeHours : Number(S.settings.rate) || defaults.rate;
   const missingHours = Math.ceil(remaining / Math.max(1, hourlyAverage) * 2) / 2;
+  const averageShiftHours = completed.length && completeHours > 0 ? completeHours / completed.length : 8;
+  const shiftsNeeded = Math.ceil(missingHours / Math.max(1, averageShiftHours));
+  const formatDate = value => new Intl.DateTimeFormat("vi-VN", { day: "numeric", month: "long" }).format(new Date(`${value}T12:00:00`));
+  const todayDate = today();
+  const planStart = todayDate < bounds.start ? bounds.start : todayDate;
+  const remainingDays = todayDate > bounds.end ? 0 : Math.floor((new Date(`${bounds.end}T12:00:00`) - new Date(`${planStart}T12:00:00`)) / 86400000) + 1;
+
   q("#goal-remaining-hours").textContent = remaining
-    ? "Còn thiếu khoảng " + number(missingHours) + " giờ công nữa · ước tính theo lương trung bình"
-    : "Đã đạt mục tiêu" + (total > goal ? " và vượt " + money(total - goal) : "") + " 🎉";
+    ? `Còn thiếu ${money(remaining)} · khoảng ${number(missingHours)} giờ công`
+    : `Đã đạt mục tiêu${total > goal ? ` và vượt ${money(total - goal)}` : ""} 🎉`;
+  if (!remaining) {
+    q("#goal-plan").textContent = `Bạn đã đạt mục tiêu kỳ ${formatDate(bounds.start)}–${formatDate(bounds.end)}.`;
+  } else if (!remainingDays) {
+    q("#goal-plan").textContent = `Kỳ lương đã kết thúc ngày ${formatDate(bounds.end)}; mục tiêu chưa đạt.`;
+  } else {
+    const weeksLeft = remainingDays / 7;
+    const hoursPerWeek = Math.ceil(missingHours / weeksLeft * 2) / 2;
+    const shiftsPerWeek = Math.ceil(shiftsNeeded / weeksLeft);
+    q("#goal-plan").textContent = `Lộ trình đến ${formatDate(bounds.end)}: khoảng ${number(hoursPerWeek)} giờ/tuần · ${number(shiftsPerWeek)} ca/tuần.`;
+  }
   if (goalWasComplete === false && ratio >= 1) celebrateGoal();
   goalWasComplete = ratio >= 1;
   q("#jar-wave").setAttribute("d", "M18 36 C31 31 44 40 59 35 S86 31 102 36 V45 C88 41 73 41 59 45 S32 43 18 45Z");
