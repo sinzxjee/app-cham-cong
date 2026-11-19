@@ -308,7 +308,8 @@ function renderWeekChart() {
   const sunday = dates[6].slice(8, 10) + "/" + dates[6].slice(5, 7);
   q("#week-range").textContent = `${monday}–${sunday}`;
   const emptyState = totals.some(pay => pay > 0) ? "" : '<text class="week-chart-empty" x="210" y="65">Chưa có ca ghi nhận trong tuần</text>';
-  q("#week-chart").innerHTML = `<title>Lương theo ngày trong tuần</title>${emptyState}<line class="week-chart-baseline" x1="18" y1="106" x2="410" y2="106"/>${bars}`;
+  q("#week-chart").innerHTML = `<title id="week-chart-title">Lương theo ngày trong tuần</title>${emptyState}<line class="week-chart-baseline" x1="18" y1="106" x2="410" y2="106"/>${bars}`;
+  q("#week-chart-data").replaceChildren(...dates.map((date, index) => { const item = document.createElement("li"); item.textContent = `${new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(new Date(`${date}T12:00:00`))}: ${money(totals[index])}`; return item; }));
 }
 function applyBentoOrder() {
   const grid = q("#bento-grid");
@@ -491,8 +492,7 @@ function renderCalendar() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `calendar-day${dayRows.length ? " has-shifts" : ""}${dateString === today() ? " today" : ""}${dateString === selectedDate ? " selected" : ""}`;
-    button.setAttribute("role", "gridcell");
-    button.setAttribute("aria-selected", String(dateString === selectedDate));
+    button.setAttribute("aria-pressed", String(dateString === selectedDate));
     button.setAttribute("aria-label", `${new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(date)}${dayRows.length ? `, ${dayRows.length} ca, ${money(dayTotal)}` : ", chưa có ca"}`);
     const hasHoliday = dayRows.some(shift => shift.holiday);
     const hasNight = dayRows.some(shift => calculate(shift).night > 0);
@@ -530,8 +530,7 @@ function renderHeatmap() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `heat-day heat-level-${level}${date === selectedDate ? " selected" : ""}${date === today() ? " today" : ""}`;
-    button.setAttribute("role", "gridcell");
-    button.setAttribute("aria-selected", String(date === selectedDate));
+    button.setAttribute("aria-pressed", String(date === selectedDate));
     button.setAttribute("aria-label", `${new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(new Date(`${date}T12:00:00`))}: ${money(pay)}`);
     button.title = `${day} · ${money(pay)} · chạm để lọc ca`;
     button.textContent = String(day);
@@ -576,7 +575,7 @@ function showToast(message, undo = false) {
   q("#toast-message").textContent = message;
   q("#undo-delete").hidden = !undo;
   q("#toast").hidden = false;
-  toastTimer = setTimeout(() => { q("#toast").hidden = true; undoState = null; }, 6000);
+  toastTimer = setTimeout(() => { q("#toast").hidden = true; undoState = null; }, undo ? 10000 : 6000);
 }
 function removeShift(shift) {
   const index = S.rows.indexOf(shift);
@@ -776,7 +775,7 @@ q("#bento-grid").addEventListener("keydown", event => {
   event.preventDefault();
   const card = event.target.closest("[data-bento-card]");
   const sibling = event.key === "ArrowUp" ? card.previousElementSibling : card.nextElementSibling;
-  if (sibling) { q("#bento-grid").insertBefore(card, event.key === "ArrowUp" ? sibling : sibling.nextElementSibling); saveBentoOrder(); }
+  if (sibling) { q("#bento-grid").insertBefore(card, event.key === "ArrowUp" ? sibling : sibling.nextElementSibling); saveBentoOrder(); const position = [...q("#bento-grid").children].indexOf(card) + 1; showToast(`Đã chuyển ${card.querySelector("h2")?.textContent || "thẻ"} lên vị trí ${position}`); }
 });
 let slideProgress = 0;
 let sliderPointer = null;
@@ -789,7 +788,7 @@ function resetSlider() {
   slider.style.setProperty("--slide-progress", "0%");
   slider.style.setProperty("--slide-fill", `${sliderHandle.offsetWidth}px`);
   slider.classList.remove("is-dragging");
-  slider.setAttribute("aria-valuenow", "0");
+  q("#slide-status").textContent = "Chưa xác nhận";
 }
 slider.addEventListener("pointerdown", event => {
   if (!event.target.closest("#slide-handle") || (event.pointerType === "mouse" && event.button !== 0)) return;
@@ -807,7 +806,7 @@ slider.addEventListener("pointermove", event => {
   slider.style.setProperty("--slide-x", `${x}px`);
   slider.style.setProperty("--slide-progress", `${slideProgress * 100}%`);
   slider.style.setProperty("--slide-fill", `${x + sliderHandle.offsetWidth}px`);
-  slider.setAttribute("aria-valuenow", String(Math.round(slideProgress * 100)));
+  q("#slide-status").textContent = `${Math.round(slideProgress * 100)} phần trăm`;
 });
 slider.addEventListener("pointerup", event => {
   if (event.pointerId !== sliderPointer) return;
@@ -899,3 +898,4 @@ setInterval(renderClock, 1000);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => showToast("Chế độ offline chưa khả dụng trên trình duyệt này."));
 }
+
