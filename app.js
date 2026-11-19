@@ -888,17 +888,29 @@ q("#theme-toggle").addEventListener("click", () => {
 const gyroToggle = q("#jar-gyro-toggle");
 let gyroActive = false;
 let gyroOffset = 0;
+let gyroTilt = 0;
+let gyroTimer = null;
 function handleDeviceTilt(event) {
   if (!Number.isFinite(event.gamma)) return;
-  const target = Math.max(-10, Math.min(10, event.gamma / 40 * 10));
-  gyroOffset += (target - gyroOffset) * 0.18;
-  q(".goal-jar").style.setProperty("--gyro-shift", `${gyroOffset.toFixed(2)}px`);
+  const target = Math.max(-18, Math.min(18, event.gamma / 40 * 18));
+  const tiltTarget = Math.max(-12, Math.min(12, event.gamma / 40 * 12));
+  gyroOffset += (target - gyroOffset) * 0.22;
+  gyroTilt += (tiltTarget - gyroTilt) * 0.2;
+  const jar = q(".goal-jar");
+  jar.style.setProperty("--gyro-shift", `${gyroOffset.toFixed(2)}px`);
+  jar.style.setProperty("--gyro-tilt", `${gyroTilt.toFixed(2)}deg`);
+  if (gyroTimer) { clearTimeout(gyroTimer); gyroTimer = null; }
+  gyroToggle.textContent = "Gyro bật";
 }
 function stopGyro() {
   window.removeEventListener("deviceorientation", handleDeviceTilt);
+  clearTimeout(gyroTimer);
+  gyroTimer = null;
   gyroActive = false;
   gyroOffset = 0;
+  gyroTilt = 0;
   q(".goal-jar").style.setProperty("--gyro-shift", "0px");
+  q(".goal-jar").style.setProperty("--gyro-tilt", "0deg");
   gyroToggle.textContent = "Gyro";
   gyroToggle.setAttribute("aria-pressed", "false");
   gyroToggle.setAttribute("aria-label", "Bật sóng theo cảm biến nghiêng");
@@ -906,7 +918,7 @@ function stopGyro() {
 }
 gyroToggle.addEventListener("click", async () => {
   if (gyroActive) { stopGyro(); showToast("Đã tắt cảm biến nghiêng."); return; }
-  if (!("DeviceOrientationEvent" in window)) { showToast("Điện thoại này không hỗ trợ cảm biến nghiêng."); return; }
+  if (!("DeviceOrientationEvent" in window)) { showToast("Trình duyệt này không hỗ trợ cảm biến nghiêng."); return; }
   try {
     if (typeof DeviceOrientationEvent.requestPermission === "function") {
       const permission = await DeviceOrientationEvent.requestPermission();
@@ -914,13 +926,17 @@ gyroToggle.addEventListener("click", async () => {
     }
     window.addEventListener("deviceorientation", handleDeviceTilt, { passive: true });
     gyroActive = true;
-    gyroToggle.textContent = "Gyro bật";
+    gyroToggle.textContent = "Đang chờ…";
     gyroToggle.setAttribute("aria-pressed", "true");
-    gyroToggle.setAttribute("aria-label", "Tắt sóng theo cảm biến nghiêng");
-    gyroToggle.title = "Tắt sóng theo cảm biến nghiêng";
-    showToast("Đã bật sóng theo độ nghiêng điện thoại.");
+    gyroToggle.setAttribute("aria-label", "Đang chờ dữ liệu cảm biến nghiêng; chạm để tắt");
+    gyroToggle.title = "Đang chờ dữ liệu cảm biến nghiêng";
+    gyroTimer = setTimeout(() => {
+      if (!gyroActive || gyroOffset !== 0 || gyroTilt !== 0) return;
+      stopGyro();
+      showToast("iPhone chưa gửi dữ liệu nghiêng. Hãy mở app bằng Safari và cho phép Motion & Orientation Access.");
+    }, 2500);
   } catch {
-    showToast("Không thể bật cảm biến. Hãy kiểm tra quyền Motion & Orientation trong trình duyệt.");
+    showToast("Không được cấp quyền cảm biến. Hãy cho phép Motion & Orientation trong cài đặt Safari.");
   }
 });document.querySelectorAll("[data-goal]").forEach(button => button.addEventListener("click", () => {
   S.settings.goal = Number(button.dataset.goal);

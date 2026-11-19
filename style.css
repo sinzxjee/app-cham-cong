@@ -23,7 +23,7 @@ h1,h2,h3{margin:0;letter-spacing:-.025em;line-height:1.2}h1{font-size:27px;font-
 .local-note{color:var(--muted);font-size:13px}.calc-note{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.4}
 .goal-widget{display:grid;grid-template-columns:82px minmax(0,1fr);align-items:center;justify-self:stretch;gap:7px;min-width:0;padding-left:18px;border-left:1px solid var(--line)}
 .goal-jar-wrap{width:78px;height:115px}.goal-jar{display:block;width:100%;height:100%;overflow:visible}
-.jar-fill-group{transform-box:view-box;transform:translateY(var(--water-offset,138px));transition:transform 2.8s cubic-bezier(.2,.72,.18,1);will-change:transform}
+.jar-fill-group{transform-box:view-box;transform:translateY(var(--water-offset,138px)) rotate(var(--gyro-tilt,0deg));transform-origin:50% 56%;transition:transform 2.8s cubic-bezier(.2,.72,.18,1);will-change:transform}
 .jar-glass{fill:#f3f8f5}.jar-outline{fill:none;stroke:#37584a;stroke-width:3.2;stroke-linejoin:round}
 .jar-neck{fill:#e5eee8;stroke:#37584a;stroke-width:3}.jar-cap{fill:#185843}.jar-shine{fill:none;stroke:#b9cec0;stroke-width:2.5;stroke-linecap:round}
 .jar-liquid{fill:var(--water);opacity:.28}.jar-wave{transform-box:fill-box;transform-origin:center;animation:jar-wave-flow 5.4s linear infinite}.jar-wave-back{fill:color-mix(in srgb,var(--water) 55%,white);animation-duration:7.2s;animation-direction:reverse}.jar-wave-front{fill:color-mix(in srgb,var(--water) 82%,#155d9a);animation-duration:4.8s}@keyframes jar-wave-flow{from{transform:translateX(var(--gyro-shift,0px))}to{transform:translateX(calc(-48px + var(--gyro-shift,0px)))}}
