@@ -220,11 +220,11 @@ function updateGoal() {
   }
   if (goalWasComplete === false && ratio >= 1) celebrateGoal();
   goalWasComplete = ratio >= 1;
-  const backWave = "M-48 31 C-36 27 -24 27 -12 31 S12 35 24 31 S48 27 60 31 S84 35 96 31 S120 27 132 31 S156 35 168 31 L168 180 L-48 180Z";
-  const frontWave = "M-48 31 C-36 34 -24 34 -12 31 S12 28 24 31 S48 34 60 31 S84 28 96 31 S120 34 132 31 S156 28 168 31 L168 180 L-48 180Z";
+  const backWave = "M-64 31 C-56 26 -50 27 -44 30 S-30 36 -22 32 S-8 25 0 31 C8 26 14 27 20 30 S34 36 42 32 S56 25 64 31 C72 26 78 27 84 30 S98 36 106 32 S120 25 128 31 C136 26 142 27 148 30 S162 36 170 32 S184 25 192 31 L192 180 L-64 180Z";
+  const frontWave = "M-64 31 C-57 36 -50 35 -44 32 S-29 26 -22 30 S-7 37 0 31 C7 27 15 26 21 30 S36 36 43 32 S57 26 64 31 C71 36 78 35 84 32 S99 26 106 30 S121 37 128 31 C135 27 143 26 149 30 S164 36 171 32 S185 26 192 31 L192 180 L-64 180Z";
   q("#jar-wave-back").setAttribute("d", backWave);
   q("#jar-wave-front").setAttribute("d", frontWave);
-  q("#jar-wave-back").style.opacity = fill ? "0.48" : "0";
+  q("#jar-wave-back").style.opacity = fill ? "0.9" : "0";
   q("#jar-wave-front").style.opacity = fill ? "1" : "0";
   q("#jar-liquid").style.opacity = fill ? "1" : "0";
   document.querySelectorAll("[data-goal]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.goal) === goal)));
@@ -887,13 +887,17 @@ q("#theme-toggle").addEventListener("click", () => {
 });
 const gyroToggle = q("#jar-gyro-toggle");
 let gyroActive = false;
+let gyroReceived = false;
 let gyroOffset = 0;
 let gyroTilt = 0;
 let gyroTimer = null;
 function handleDeviceTilt(event) {
-  if (!Number.isFinite(event.gamma)) return;
-  const target = Math.max(-18, Math.min(18, event.gamma / 40 * 18));
-  const tiltTarget = Math.max(-12, Math.min(12, event.gamma / 40 * 12));
+  if (!Number.isFinite(event.gamma) && !Number.isFinite(event.alpha)) return;
+  gyroReceived = true;
+  const gamma = Number.isFinite(event.gamma) ? event.gamma : 0;
+  const alpha = Number.isFinite(event.alpha) ? ((event.alpha % 360) + 360) % 360 : 0;
+  const target = (alpha / 360) * 64 - Math.max(-10, Math.min(10, gamma / 40 * 10));
+  const tiltTarget = Math.max(-12, Math.min(12, -gamma / 40 * 12));
   gyroOffset += (target - gyroOffset) * 0.22;
   gyroTilt += (tiltTarget - gyroTilt) * 0.2;
   const jar = q(".goal-jar");
@@ -907,6 +911,7 @@ function stopGyro() {
   clearTimeout(gyroTimer);
   gyroTimer = null;
   gyroActive = false;
+  gyroReceived = false;
   gyroOffset = 0;
   gyroTilt = 0;
   q(".goal-jar").style.setProperty("--gyro-shift", "0px");
@@ -926,12 +931,20 @@ gyroToggle.addEventListener("click", async () => {
     }
     window.addEventListener("deviceorientation", handleDeviceTilt, { passive: true });
     gyroActive = true;
+    gyroReceived = false;
+    const jar = q(".goal-jar");
+    const backDuration = 6 + Math.random() * 3;
+    const frontDuration = 3.8 + Math.random() * 3.2;
+    jar.style.setProperty("--wave-back-duration", `${backDuration.toFixed(2)}s`);
+    jar.style.setProperty("--wave-front-duration", `${frontDuration.toFixed(2)}s`);
+    jar.style.setProperty("--wave-back-delay", `${-(Math.random() * backDuration).toFixed(2)}s`);
+    jar.style.setProperty("--wave-front-delay", `${-(Math.random() * frontDuration).toFixed(2)}s`);
     gyroToggle.textContent = "Đang chờ…";
     gyroToggle.setAttribute("aria-pressed", "true");
     gyroToggle.setAttribute("aria-label", "Đang chờ dữ liệu cảm biến nghiêng; chạm để tắt");
     gyroToggle.title = "Đang chờ dữ liệu cảm biến nghiêng";
     gyroTimer = setTimeout(() => {
-      if (!gyroActive || gyroOffset !== 0 || gyroTilt !== 0) return;
+      if (!gyroActive || gyroReceived) return;
       stopGyro();
       showToast("iPhone chưa gửi dữ liệu nghiêng. Hãy mở app bằng Safari và cho phép Motion & Orientation Access.");
     }, 2500);
