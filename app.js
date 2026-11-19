@@ -193,6 +193,9 @@ function updateGoal() {
     q("#goal-plan").textContent = `Bạn đã đạt mục tiêu kỳ ${formatDate(bounds.start)}–${formatDate(bounds.end)}.`;
   } else if (!remainingDays) {
     q("#goal-plan").textContent = `Kỳ lương đã kết thúc ngày ${formatDate(bounds.end)}; mục tiêu chưa đạt.`;
+  } else if (remainingDays <= 7) {
+    const paceWarning = shiftsNeeded > remainingDays ? " · mục tiêu khó kịp kỳ này" : "";
+    q("#goal-plan").textContent = `Còn ${number(remainingDays)} ngày: cần khoảng ${number(missingHours)} giờ · ${number(shiftsNeeded)} ca trước ${formatDate(bounds.end)}${paceWarning}.`;
   } else {
     const weeksLeft = remainingDays / 7;
     const hoursPerWeek = Math.ceil(missingHours / weeksLeft * 2) / 2;
