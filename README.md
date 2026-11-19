@@ -14,12 +14,13 @@
 - Lịch và heatmap theo kỳ lương; màu ô đậm dần theo lương ước tính trong ngày, chạm ô để lọc ca.
 - Ca thủ công chọn giờ theo bước 30 phút; danh sách xếp ngày/giờ cũ đến mới.
 - Mẫu ca dạng chip vuốt ngang đặt ngay trên nút bấm giờ; chạm một lần để lưu ca hôm nay. Quản lý mẫu, lặp giờ ca trước, hoàn tác xóa, xuất CSV và sao lưu/khôi phục JSON.
-- Mục tiêu mặc định 2.500.000 ₫ với thanh tiến độ gradient, ước tính giờ công còn thiếu và pháo giấy khi đạt mục tiêu; chọn nhanh 1,5 / 2,5 / 5 triệu hoặc nhập mức khác; giao diện sáng/tối.
+- Mục tiêu mặc định 2.500.000 ₫ với thanh tiến độ gradient, ước tính giờ công còn thiếu và pháo giấy khi đạt mục tiêu; chọn nhanh 1,5 / 2,5 / 5 triệu hoặc nhập mức khác.
+- Bốn bảng màu Tech Cobalt, Fresh Emerald, Matcha & Cream và Pure Monochrome; mỗi bảng màu đều dùng được ở chế độ sáng và tối.
 - PWA cài lên màn hình chính và dùng offline sau khi tải lần đầu.
 
 ## Quy tắc tính hiện tại
 
-- Khi trượt vào ca, giờ bắt đầu được làm tròn lên mốc 30 phút tiếp theo; nếu trượt trong phút đầu của mốc (ví dụ 9:00:59) vẫn giữ mốc đó. Thời gian thực bắt đầu được giữ riêng để đồng hồ đếm giờ chính xác.
+- Khi trượt vào hoặc kết ca, giờ ghi nhận được làm tròn lên mốc 30 phút tiếp theo; nếu trượt trong phút đầu của mốc (ví dụ 9:00:59) vẫn giữ mốc đó. Thời điểm thực được giữ riêng để đồng hồ đếm giờ chính xác.
 - Ca qua nửa đêm được tính sang ngày kế tiếp.
 - Giờ đêm từ 22:00 đến 02:00, phụ cấp mặc định +30% trên giờ trong khoảng này.
 - Ca Lễ/Tết nhân 300% lương giờ công (cộng thêm 200%); phụ cấp đêm cộng riêng.

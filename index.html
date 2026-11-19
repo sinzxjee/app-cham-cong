@@ -11,8 +11,8 @@
   <link rel="icon" href="app-icon.jpg" type="image/jpeg">
   <link rel="apple-touch-icon" href="app-icon.jpg">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=14">
-  <script src="app.js?v=14" defer></script>
+  <link rel="stylesheet" href="style.css?v=15">
+  <script src="app.js?v=15" defer></script>
 </head>
 <body>
   <main class="app">
@@ -93,6 +93,12 @@
       <label>Hệ số lễ/Tết <span>%</span><input id="holidayRate" type="number" min="100" step="1" inputmode="numeric" required></label>
       <label>Mục tiêu lương mỗi kỳ <span>₫</span><input id="goal" type="number" min="1" step="50000" inputmode="decimal" required></label>
     </div>
+    <fieldset class="palette-picker"><legend>Màu giao diện</legend><p class="palette-hint">Chọn bảng màu. Nút ngày/đêm phía trên vẫn hoạt động với mọi chủ đề.</p><div class="palette-options" role="group" aria-label="Chọn bảng màu">
+      <button type="button" class="palette-option" data-palette="cobalt" data-palette-name="Tech Cobalt" aria-pressed="false"><span class="palette-swatches"><i></i><i></i><i></i></span><span><strong>Tech Cobalt</strong><small>Xanh dương công nghệ</small></span></button>
+      <button type="button" class="palette-option" data-palette="emerald" data-palette-name="Fresh Emerald" aria-pressed="false"><span class="palette-swatches"><i></i><i></i><i></i></span><span><strong>Fresh Emerald</strong><small>Xanh lá năng động</small></span></button>
+      <button type="button" class="palette-option" data-palette="matcha" data-palette-name="Matcha & Cream" aria-pressed="false"><span class="palette-swatches"><i></i><i></i><i></i></span><span><strong>Matcha & Cream</strong><small>Xanh matcha, kem sữa</small></span></button>
+      <button type="button" class="palette-option" data-palette="monochrome" data-palette-name="Pure Monochrome" aria-pressed="false"><span class="palette-swatches"><i></i><i></i><i></i></span><span><strong>Pure Monochrome</strong><small>Đen trắng tương phản</small></span></button>
+    </div></fieldset>
     <p class="note">Giờ chọn bằng tay nhảy mỗi 30 phút. Giờ đêm tính từ 22:00 đến 02:00. Ca bấm giờ trừ phần nghỉ đã ghi; ca nhập tay trừ thời gian nghỉ mặc định.</p>
     <div class="modal-actions"><button type="button" class="secondary" id="cancel-settings">Hủy</button><button class="primary" id="save" type="submit">Lưu thiết lập</button></div>
   </form></dialog>

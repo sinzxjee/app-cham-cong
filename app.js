@@ -5,7 +5,7 @@ const money = value => new Intl.NumberFormat("vi-VN", { style: "currency", curre
 const number = value => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value || 0);
 const dateKey = date => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 const timeKey = date => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-function roundedClockInTime(date) {
+function roundedClockTime(date) {
   const rounded = new Date(date);
   const minute = rounded.getMinutes();
   const nextMark = minute % 30 === 0 ? minute : Math.ceil(minute / 30) * 30;
@@ -21,6 +21,7 @@ try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { saved =
 const S = saved && typeof saved === "object" ? saved : { settings: {}, rows: [], templates: [] };
 S.settings = { ...defaults, ...(S.settings || {}) };
 S.preferences = { theme: "light", ...(S.preferences || {}) };
+S.preferences.palette = ["cobalt", "emerald", "matcha", "monochrome"].includes(S.preferences.palette) ? S.preferences.palette : "emerald";
 S.preferences.bentoOrder = Array.isArray(S.preferences.bentoOrder) ? S.preferences.bentoOrder : [];
 S.notes = S.notes && typeof S.notes === "object" ? S.notes : {};
 S.rows = Array.isArray(S.rows) ? S.rows.filter(row => row && typeof row === "object") : [];
@@ -222,7 +223,7 @@ function handleClockAction() {
   const now = new Date();
   const active = currentClockShift();
   if (!active) {
-    const roundedStart = roundedClockInTime(now);
+    const roundedStart = roundedClockTime(now);
     const actualStart = timeKey(now);
     const shift = { id: crypto.randomUUID(), date: dateKey(now), start: roundedStart, end: "", holiday: false, clockState: "work", clockStartedAt: now.toISOString(), breakMinutes: Number(S.settings.break) * 60, breaks: [] };
     S.rows.push(shift);
@@ -233,10 +234,11 @@ function handleClockAction() {
     if (save()) showToast(roundedStart === actualStart ? `Đã vào ca lúc ${shift.start}` : `Đã vào ca lúc ${shift.start} · làm tròn từ ${actualStart}`);
     return;
   }
-  active.end = timeKey(now);
+  const actualEnd = timeKey(now);
+  active.end = roundedClockTime(now);
   active.clockEndedAt = now.toISOString();
   active.clockState = "done";
-  if (save()) showToast(`Đã kết thúc ca lúc ${active.end}`);
+  if (save()) showToast(active.end === actualEnd ? `Đã kết thúc ca lúc ${active.end}` : `Đã kết ca lúc ${active.end} · làm tròn từ ${actualEnd}`);
 }
 function renderTodayShifts() {
   const list = q("#today-list");
@@ -325,12 +327,14 @@ function renderNote() {
 function applyTheme() {
   const dark = S.preferences.theme === "dark";
   document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.documentElement.dataset.palette = S.preferences.palette;
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
   const button = q("#theme-toggle");
   button.setAttribute("aria-label", dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối");
   button.title = dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối";
   button.innerHTML = dark ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.7 8.7 0 0 1 8.8 3.5 8.7 8.7 0 1 0 20.5 15.2Z"/></svg>';
-  q("#theme-color-meta").content = dark ? "#141b18" : "#f7f8f6";
+  q("#theme-color-meta").content = dark ? "#141b18" : "#ffffff";
+  document.querySelectorAll("[data-palette]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.palette === S.preferences.palette)));
 }
 function refreshSummary() {
   const rows = periodRows();
@@ -817,8 +821,13 @@ sliderHandle.addEventListener("click", event => {
 });
 q("#gear").addEventListener("click", () => {
   for (const key of Object.keys(defaults)) q("#" + key).value = S.settings[key];
+  applyTheme();
   q("#dlg").showModal();
 });
+document.querySelectorAll("[data-palette]").forEach(button => button.addEventListener("click", () => {
+  S.preferences.palette = button.dataset.palette;
+  if (persist()) { applyTheme(); showToast(`Đã chọn giao diện ${button.dataset.paletteName}`); }
+}));
 q("#theme-toggle").addEventListener("click", () => {
   S.preferences.theme = S.preferences.theme === "dark" ? "light" : "dark";
   if (persist()) { applyTheme(); showToast(`Đã chuyển sang giao diện ${S.preferences.theme === "dark" ? "tối" : "sáng"}`); }
