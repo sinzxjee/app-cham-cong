@@ -43,6 +43,7 @@ let deferredInstallPrompt = null;
 let activeTab = "today";
 let noteTimer;
 let goalWasComplete = null;
+let lastGoalTotal = null;
 
 function minutes(value) {
   const [hour = 0, minute = 0] = String(value || "").split(":").map(Number);
@@ -165,6 +166,13 @@ function updateGoal() {
   const ratio = Math.max(0, total / goal);
   const percent = Math.round(ratio * 100);
   const fill = Math.min(1, ratio);
+  const jar = q(".goal-jar");
+  if (lastGoalTotal !== null && total > lastGoalTotal && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    jar.classList.remove("is-sloshing");
+    void jar.getBoundingClientRect();
+    jar.classList.add("is-sloshing");
+  }
+  lastGoalTotal = total;
   const group = q("#jar-fill-group");
   if (group) group.style.setProperty("--fill-scale", String(fill));
   q("#goal-percent").textContent = `${percent}%`;
