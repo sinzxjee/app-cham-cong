@@ -124,12 +124,6 @@ function scopeName() {
   const [year, month] = q("#month-filter").value.split("-").map(Number);
   return new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
 }
-function isClockActive(shift) {
-  return shift && (shift.clockState === "work" || shift.clockState === "break") && !shift.end;
-}
-function activeClockShift() {
-  return S.rows.find(isClockActive);
-}
 function updateGoal(total) {
   const goal = Math.max(1, Number(S.settings.goal) || defaults.goal);
   const ratio = Math.max(0, total / goal);
@@ -148,53 +142,6 @@ function updateGoal(total) {
   q("#jar-wave").style.opacity = fill ? "1" : "0";
   q("#jar-liquid").style.opacity = fill ? "1" : "0";
   document.querySelectorAll("[data-goal]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.goal) === goal)));
-}
-function dayMonthSeries() {
-  const monthValue = q("#month-filter").value || today().slice(0, 7);
-  const [year, month] = monthValue.split("-").map(Number);
-  const count = new Date(year, month, 0).getDate();
-  const totals = Array.from({ length: count }, (_, index) => ({ label: index + 1, pay: 0 }));
-  S.rows.filter(shift => isComplete(shift) && String(shift.date).startsWith(monthValue)).forEach(shift => {
-    const day = Number(shift.date.slice(-2));
-    totals[day - 1].pay += calculate(shift).pay;
-  });
-  return totals;
-}
-function monthSeries() {
-  const current = new Date();
-  const totals = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(current.getFullYear(), current.getMonth() - 5 + index, 1);
-    return { key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`, label: new Intl.DateTimeFormat("vi-VN", { month: "short" }).format(date), pay: 0 };
-  });
-  S.rows.filter(isComplete).forEach(shift => {
-    const month = totals.find(item => item.key === String(shift.date).slice(0, 7));
-    if (month) month.pay += calculate(shift).pay;
-  });
-  return totals;
-}
-function renderChart(svg, series, goal = 0) {
-  const width = 640, height = 170, left = 48, right = 10, top = 12, bottom = 28;
-  const plotWidth = width - left - right, plotHeight = height - top - bottom;
-  const max = Math.max(goal, ...series.map(point => point.pay), 1);
-  const ticks = [0, max / 2, max];
-  const y = value => top + plotHeight - (value / max) * plotHeight;
-  const x = index => series.length <= 1 ? left + plotWidth / 2 : left + index * plotWidth / (series.length - 1);
-  const grid = ticks.map(value => `<line class="chart-gridline" x1="${left}" y1="${y(value)}" x2="${width - right}" y2="${y(value)}"/><text class="chart-y-label" x="${left - 6}" y="${y(value) + 4}" text-anchor="end">${value ? `${number(value / 1000000)}tr` : "0"}</text>`).join("");
-  const points = series.map((point, index) => `${x(index)},${y(point.pay)}`).join(" ");
-  const labels = series.map((point, index) => {
-    if (series.length > 18 && index % 3 !== 0 && index !== series.length - 1) return "";
-    return `<text class="chart-x-label" x="${x(index)}" y="${height - 5}" text-anchor="middle">${safe(point.label)}</text>`;
-  }).join("");
-  const dots = series.map((point, index) => `<circle class="chart-point" cx="${x(index)}" cy="${y(point.pay)}" r="3"><title>${safe(point.label)}: ${money(point.pay)}</title></circle>`).join("");
-  const goalLine = goal ? `<line class="chart-goal-line" x1="${left}" y1="${y(goal)}" x2="${width - right}" y2="${y(goal)}"/><text class="chart-goal-label" x="${width - right - 2}" y="${y(goal) - 4}" text-anchor="end">Mục tiêu</text>` : "";
-  svg.innerHTML = `<title>${svg.getAttribute("aria-label")}</title>${grid}${goalLine}<polyline class="chart-area" points="${left},${y(0)} ${points} ${x(series.length - 1)},${y(0)}"/><polyline class="chart-line" points="${points}"/>${dots}${labels}`;
-}
-function renderDashboard() {
-  const monthValue = q("#month-filter").value || today().slice(0, 7);
-  const [year, month] = monthValue.split("-").map(Number);
-  q("#daily-chart-title").textContent = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
-  renderChart(q("#daily-chart"), dayMonthSeries());
-  renderChart(q("#monthly-chart"), monthSeries(), Number(S.settings.goal));
 }
 function applyTheme() {
   const dark = S.preferences.theme === "dark";
@@ -229,15 +176,10 @@ function refreshSummary() {
   q("#holiday-filter-count").textContent = holidayCount;
   q("#night-filter-count").textContent = rows.filter(shift => calculate(shift).night > 0).length;
   document.querySelectorAll("[data-filter]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.filter === activeFilter)));
-  q("#report-base").textContent = money(base);
-  q("#report-holiday").textContent = money(holidayExtra);
-  q("#report-night").textContent = money(nightPay);
-  q("#report-total").textContent = money(total);
   updateGoal(total);
-  renderDashboard();
+  renderHeatmap();
 }
 function rowStatus(shift) {
-  if (isClockActive(shift)) return shift.clockState === "break" ? "Đang nghỉ · chưa tính lương" : "Đang làm · chưa tính lương";
   if (!shift.date) return "Thiếu ngày";
   if (!shift.start || !shift.end) return "Nhập giờ vào và giờ ra để tính lương";
   return "Đã tính lương";
@@ -247,9 +189,8 @@ function updateCard(card, shift) {
   const complete = isComplete(shift);
   const status = card.querySelector(".status");
   card.classList.toggle("is-incomplete", !complete);
-  card.classList.toggle("is-running", isClockActive(shift));
   status.className = `status ${complete ? "complete" : "pending"}`;
-  status.textContent = isClockActive(shift) ? (shift.clockState === "break" ? "Đang nghỉ" : "Đang làm") : complete ? "Đã tính" : "Thiếu thông tin";
+  status.textContent = complete ? "Đã tính" : "Thiếu thông tin";
   card.querySelector(".remove").setAttribute("aria-label", `Xóa ca ngày ${shift.date || "chưa chọn"}`);
   card.querySelector(".shift-pay-label").textContent = complete ? "Tiền ca này" : rowStatus(shift);
   card.querySelector(".shift-pay strong").textContent = complete ? money(result.pay) : "—";
@@ -260,8 +201,6 @@ function updateCard(card, shift) {
   card.querySelector("[data-pay=holiday]").textContent = money(result.holidayExtra);
   card.querySelector("[data-pay=night]").textContent = money(result.nightPay);
   card.querySelector(".pay-details").hidden = !complete;
-  const timeFieldsDisabled = isClockActive(shift);
-  card.querySelectorAll("input[type=date],input[type=time]").forEach(input => { input.disabled = timeFieldsDisabled; });
 }
 function renderList() {
   const list = q("#list");
@@ -280,7 +219,7 @@ function renderList() {
     card.dataset.start = String(shift.start || "");
     card.innerHTML = `<div class="shift-top">
       <div class="shift-date"><label for="date-${safe(shift.id)}">Ngày</label><input id="date-${safe(shift.id)}" type="date" data-k="date" value="${safe(shift.date)}"></div>
-      <span class="status ${complete ? "complete" : "pending"}">${isClockActive(shift) ? (shift.clockState === "break" ? "Đang nghỉ" : "Đang làm") : complete ? "Đã tính" : "Thiếu thông tin"}</span>
+      <span class="status ${complete ? "complete" : "pending"}">${complete ? "Đã tính" : "Thiếu thông tin"}</span>
       <button type="button" class="remove" aria-label="Xóa ca ngày ${safe(shift.date || "chưa chọn")}" title="Xóa ca làm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6m4-6v6M6.5 7l.8 13h9.4l.8-13M9 7V4h6v3"/></svg></button>
     </div>
     <div class="shift-fields">
@@ -383,6 +322,48 @@ function renderCalendar() {
     grid.append(button);
   }
 }
+function renderHeatmap() {
+  const monthValue = q("#month-filter").value || today().slice(0, 7);
+  const [year, month] = monthValue.split("-").map(Number);
+  const monthName = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+  q("#heatmap-period").textContent = monthName;
+  const grid = q("#salary-heatmap");
+  grid.replaceChildren();
+  const firstOffset = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+  const count = new Date(year, month, 0).getDate();
+  const totals = Array.from({ length: count }, () => 0);
+  S.rows.filter(shift => isComplete(shift) && String(shift.date).startsWith(monthValue)).forEach(shift => {
+    totals[Number(shift.date.slice(-2)) - 1] += calculate(shift).pay;
+  });
+  const positive = totals.filter(value => value > 0).sort((a, b) => a - b);
+  const thresholds = positive.length ? [0.25, 0.5, 0.75].map(fraction => positive[Math.min(positive.length - 1, Math.floor((positive.length - 1) * fraction))]) : [];
+  for (let index = 0; index < firstOffset; index++) {
+    const blank = document.createElement("span");
+    blank.className = "heatmap-empty";
+    blank.setAttribute("aria-hidden", "true");
+    grid.append(blank);
+  }
+  totals.forEach((pay, index) => {
+    const day = index + 1;
+    const date = `${monthValue}-${String(day).padStart(2, "0")}`;
+    const level = !pay ? 0 : 1 + thresholds.filter(limit => pay > limit).length;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `heat-day heat-level-${level}${date === selectedDate ? " selected" : ""}${date === today() ? " today" : ""}`;
+    button.setAttribute("role", "gridcell");
+    button.setAttribute("aria-selected", String(date === selectedDate));
+    button.setAttribute("aria-label", `${new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(new Date(`${date}T12:00:00`))}: ${money(pay)}`);
+    button.title = `${day} · ${money(pay)} · chạm để lọc ca`;
+    button.textContent = String(day);
+    button.addEventListener("click", () => {
+      allTime = false;
+      selectedDate = selectedDate === date ? null : date;
+      render();
+      q("#list").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    grid.append(button);
+  });
+}
 function setPeriodToAll() {
   allTime = true;
   selectedDate = null;
@@ -404,74 +385,6 @@ function addShift(mode = "blank", template = null) {
   startInput?.scrollIntoView({ behavior: "smooth", block: "center" });
   const message = template ? `Đã thêm ca theo mẫu “${template.name}” · kiểm tra ngày và Lễ/Tết` : mode === "repeat" && previous ? "Đã lặp giờ ca trước · kiểm tra ngày và Lễ/Tết" : "Ca mới đã thêm · nhập giờ để tính lương";
   showToast(message);
-}
-function clockElapsed(shift, nowMs = Date.now()) {
-  const startMs = new Date(shift.clockStartedAt).getTime();
-  if (!Number.isFinite(startMs)) return "00:00";
-  let pausedMs = Number(shift.breakMinutes || 0) * 60000;
-  if (shift.breakStartedAt) pausedMs += Math.max(0, nowMs - new Date(shift.breakStartedAt).getTime());
-  const minutesElapsed = Math.max(0, Math.floor((nowMs - startMs - pausedMs) / 60000));
-  return `${String(Math.floor(minutesElapsed / 60)).padStart(2, "0")}:${String(minutesElapsed % 60).padStart(2, "0")}`;
-}
-function renderClock() {
-  const active = activeClockShift();
-  const startButton = document.querySelector('.clock-actions [data-clock-action="start"]');
-  const breakButton = document.querySelector('.clock-actions [data-clock-action="break"]');
-  const resumeButton = document.querySelector('.clock-actions [data-clock-action="resume"]');
-  const endButton = document.querySelector('.clock-actions [data-clock-action="end"]');
-  startButton.hidden = Boolean(active);
-  breakButton.hidden = !active || active.clockState !== "work";
-  resumeButton.hidden = !active || active.clockState !== "break";
-  endButton.hidden = !active;
-  const panel = q(".clock-panel");
-  panel.classList.toggle("is-running", Boolean(active));
-  q("#clock-state").textContent = !active ? "Chưa vào ca" : active.clockState === "break" ? "Đang nghỉ" : "Đang làm";
-  q("#clock-elapsed").textContent = !active ? "" : clockElapsed(active);
-  q("#clock-note").textContent = !active ? "Giờ vào và kết thúc được ghi theo đồng hồ của điện thoại." : `Bắt đầu ${active.start}${active.breakMinutes ? ` · đã nghỉ ${number(active.breakMinutes)} phút` : ""}${active.breakStartedAt ? " · đang tính giờ nghỉ" : ""}.`;
-  const primary = q("#mobile-clock-primary");
-  const secondary = q("#mobile-clock-secondary");
-  if (!active) { primary.textContent = "Vào ca"; primary.dataset.clockAction = "start"; secondary.textContent = "Thêm ca"; secondary.dataset.clockAction = "add"; }
-  else if (active.clockState === "break") { primary.textContent = "Làm tiếp"; primary.dataset.clockAction = "resume"; secondary.textContent = "Kết thúc ca"; secondary.dataset.clockAction = "end"; }
-  else { primary.textContent = "Bắt đầu nghỉ"; primary.dataset.clockAction = "break"; secondary.textContent = "Kết thúc ca"; secondary.dataset.clockAction = "end"; }
-}
-function closeActiveBreak(shift, now) {
-  if (!shift.breakStartedAt) return;
-  const endAt = now.toISOString();
-  const minutesInBreak = Math.max(0, Math.round((now.getTime() - new Date(shift.breakStartedAt).getTime()) / 60000));
-  shift.breakMinutes = Number(shift.breakMinutes || 0) + minutesInBreak;
-  shift.breaks = Array.isArray(shift.breaks) ? shift.breaks : [];
-  shift.breaks.push({ start: shift.breakStartedAt, end: endAt });
-  shift.breakStartedAt = null;
-}
-function handleClockAction(action) {
-  if (action === "add") { addShift(); return; }
-  const now = new Date();
-  const active = activeClockShift();
-  if (action === "start") {
-    if (active) { showToast("Đang có một ca chưa kết thúc."); return; }
-    const shift = { id: crypto.randomUUID(), date: dateKey(now), start: timeKey(now), end: "", holiday: false, clockState: "work", clockStartedAt: now.toISOString(), breakMinutes: 0, breaks: [] };
-    S.rows.push(shift);
-    setPeriodToAll();
-    if (save()) showToast("Đã vào ca · thời gian đang chạy");
-    return;
-  }
-  if (!active) { showToast("Chưa có ca đang chạy."); return; }
-  if (action === "break" && active.clockState === "work") {
-    active.clockState = "break";
-    active.breakStartedAt = now.toISOString();
-    if (save()) showToast("Đã bắt đầu nghỉ");
-  } else if (action === "resume" && active.clockState === "break") {
-    closeActiveBreak(active, now);
-    active.clockState = "work";
-    if (save()) showToast("Đã quay lại ca làm");
-  } else if (action === "end") {
-    if (!confirm(`Kết thúc ca lúc ${timeKey(now)}?`)) return;
-    closeActiveBreak(active, now);
-    active.end = timeKey(now);
-    active.clockEndedAt = now.toISOString();
-    active.clockState = "done";
-    if (save()) showToast("Đã kết thúc ca · lương đã được tính");
-  }
 }
 function showToast(message, undo = false) {
   clearTimeout(toastTimer);
@@ -498,7 +411,6 @@ function undoDelete() {
 function render() {
   applyTheme();
   refreshSummary();
-  renderClock();
   renderTemplates();
   renderCalendar();
   renderList();
@@ -607,11 +519,7 @@ function installApp() {
   q("#install-dialog").showModal();
 }
 
-document.addEventListener("click", event => {
-  const action = event.target.closest("[data-clock-action]");
-  if (action) handleClockAction(action.dataset.clockAction);
-  if (!q("#more").contains(event.target)) q("#more").open = false;
-});
+document.addEventListener("click", event => { if (!q("#more").contains(event.target)) q("#more").open = false; });
 q("#gear").addEventListener("click", () => {
   for (const key of Object.keys(defaults)) q("#" + key).value = S.settings[key];
   q("#dlg").showModal();
@@ -673,7 +581,6 @@ window.addEventListener("appinstalled", () => { deferredInstallPrompt = null; sh
 q("#month-filter").value = today().slice(0, 7);
 render();
 updateNetworkStatus();
-setInterval(renderClock, 1000);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => showToast("Chế độ offline chưa khả dụng trên trình duyệt này."));
 }
