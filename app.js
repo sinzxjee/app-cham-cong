@@ -220,10 +220,12 @@ function updateGoal() {
   }
   if (goalWasComplete === false && ratio >= 1) celebrateGoal();
   goalWasComplete = ratio >= 1;
-  q("#jar-wave").setAttribute("d", "M18 38 C29 35 40 35 51 38 S73 41 85 38 S97 35 102 38 L102 45 L18 45Z");
-  q("#jar-wave-glint").setAttribute("d", "M21 38 C32 35.5 42 35.5 53 38 S75 40.5 87 38 S98 36 102 38");
-  q("#jar-wave").style.opacity = fill ? "1" : "0";
-  q("#jar-wave-glint").style.opacity = fill ? "0.52" : "0";
+  const backWave = "M-48 31 C-36 27 -24 27 -12 31 S12 35 24 31 S48 27 60 31 S84 35 96 31 S120 27 132 31 S156 35 168 31 L168 180 L-48 180Z";
+  const frontWave = "M-48 31 C-36 34 -24 34 -12 31 S12 28 24 31 S48 34 60 31 S84 28 96 31 S120 34 132 31 S156 28 168 31 L168 180 L-48 180Z";
+  q("#jar-wave-back").setAttribute("d", backWave);
+  q("#jar-wave-front").setAttribute("d", frontWave);
+  q("#jar-wave-back").style.opacity = fill ? "0.48" : "0";
+  q("#jar-wave-front").style.opacity = fill ? "1" : "0";
   q("#jar-liquid").style.opacity = fill ? "1" : "0";
   document.querySelectorAll("[data-goal]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.goal) === goal)));
 }
