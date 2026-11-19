@@ -786,6 +786,7 @@ function resetSlider() {
   slideProgress = 0;
   slider.style.setProperty("--slide-x", "0px");
   slider.style.setProperty("--slide-progress", "0%");
+  slider.style.setProperty("--slide-fill", `${sliderHandle.offsetWidth}px`);
   slider.classList.remove("is-dragging");
   slider.setAttribute("aria-valuenow", "0");
 }
@@ -804,6 +805,7 @@ slider.addEventListener("pointermove", event => {
   slideProgress = x / max;
   slider.style.setProperty("--slide-x", `${x}px`);
   slider.style.setProperty("--slide-progress", `${slideProgress * 100}%`);
+  slider.style.setProperty("--slide-fill", `${x + sliderHandle.offsetWidth}px`);
   slider.setAttribute("aria-valuenow", String(Math.round(slideProgress * 100)));
 });
 slider.addEventListener("pointerup", event => {
@@ -829,8 +831,14 @@ document.querySelectorAll("[data-palette]").forEach(button => button.addEventLis
   if (persist()) { applyTheme(); showToast(`Đã chọn giao diện ${button.dataset.paletteName}`); }
 }));
 q("#theme-toggle").addEventListener("click", () => {
+  const root = document.documentElement;
+  root.classList.add("theme-fade");
   S.preferences.theme = S.preferences.theme === "dark" ? "light" : "dark";
-  if (persist()) { applyTheme(); showToast(`Đã chuyển sang giao diện ${S.preferences.theme === "dark" ? "tối" : "sáng"}`); }
+  if (persist()) {
+    applyTheme();
+    setTimeout(() => root.classList.remove("theme-fade"), 360);
+    showToast(`Đã chuyển sang giao diện ${S.preferences.theme === "dark" ? "tối" : "sáng"}`);
+  } else root.classList.remove("theme-fade");
 });
 document.querySelectorAll("[data-goal]").forEach(button => button.addEventListener("click", () => {
   S.settings.goal = Number(button.dataset.goal);
