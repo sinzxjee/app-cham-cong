@@ -307,7 +307,8 @@ function renderWeekChart() {
   const monday = dates[0].slice(8, 10) + "/" + dates[0].slice(5, 7);
   const sunday = dates[6].slice(8, 10) + "/" + dates[6].slice(5, 7);
   q("#week-range").textContent = `${monday}–${sunday}`;
-  q("#week-chart").innerHTML = `<title>Lương theo ngày trong tuần</title><line class="week-chart-baseline" x1="18" y1="106" x2="410" y2="106"/>${bars}`;
+  const emptyState = totals.some(pay => pay > 0) ? "" : '<text class="week-chart-empty" x="210" y="65">Chưa có ca ghi nhận trong tuần</text>';
+  q("#week-chart").innerHTML = `<title>Lương theo ngày trong tuần</title>${emptyState}<line class="week-chart-baseline" x1="18" y1="106" x2="410" y2="106"/>${bars}`;
 }
 function applyBentoOrder() {
   const grid = q("#bento-grid");

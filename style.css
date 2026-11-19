@@ -165,3 +165,5 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline-color:var
 .heatmap-scale i{border:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}
 .toast{z-index:110}
 @media(prefers-reduced-motion:reduce){.theme-fade,.theme-fade *,.theme-fade *::before,.theme-fade *::after{transition-duration:.01ms!important}.slide-progress{transition:none!important}}
+
+.week-chart-empty{fill:var(--muted);font:12px system-ui,sans-serif;text-anchor:middle}
