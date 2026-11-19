@@ -13,8 +13,8 @@
 - Kỳ lương mặc định từ ngày 21 tháng trước đến hết ngày 20 của tháng được chọn. Ví dụ chọn tháng 11: kỳ 21/10–20/11.
 - Lịch và heatmap theo kỳ lương; màu ô đậm dần theo lương ước tính trong ngày, chạm ô để lọc ca.
 - Ca thủ công chọn giờ theo bước 30 phút; danh sách xếp ngày/giờ cũ đến mới.
-- Mẫu ca, lặp giờ ca trước, hoàn tác xóa, xuất CSV và sao lưu/khôi phục JSON.
-- Mục tiêu mặc định 2.500.000 ₫, chọn nhanh 1,5 / 2,5 / 5 triệu hoặc nhập mức khác; giao diện sáng/tối.
+- Mẫu ca dạng chip vuốt ngang đặt ngay trên nút bấm giờ; chạm một lần để lưu ca hôm nay. Quản lý mẫu, lặp giờ ca trước, hoàn tác xóa, xuất CSV và sao lưu/khôi phục JSON.
+- Mục tiêu mặc định 2.500.000 ₫ với thanh tiến độ gradient, ước tính giờ công còn thiếu và pháo giấy khi đạt mục tiêu; chọn nhanh 1,5 / 2,5 / 5 triệu hoặc nhập mức khác; giao diện sáng/tối.
 - PWA cài lên màn hình chính và dùng offline sau khi tải lần đầu.
 
 ## Quy tắc tính hiện tại

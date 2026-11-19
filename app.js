@@ -33,6 +33,7 @@ let toastTimer;
 let deferredInstallPrompt = null;
 let activeTab = "today";
 let noteTimer;
+let goalWasComplete = null;
 
 function minutes(value) {
   const [hour = 0, minute = 0] = String(value || "").split(":").map(Number);
@@ -159,10 +160,34 @@ function updateGoal(total) {
   meter.setAttribute("aria-valuenow", String(Math.min(goal, Math.round(total))));
   meter.setAttribute("aria-valuetext", `${percent}% mục tiêu, ${money(total)} trên ${money(goal)}`);
   q("#goal-meter").dataset.complete = String(ratio >= 1);
+  q("#goal-progress-fill").style.width = (fill * 100) + "%";
+  const remaining = Math.max(0, goal - total);
+  const completeHours = periodRows().filter(isComplete).map(calculate).reduce((sum, result) => sum + result.hours, 0);
+  const hourlyAverage = completeHours > 0 ? total / completeHours : Number(S.settings.rate) || defaults.rate;
+  const missingHours = Math.ceil(remaining / Math.max(1, hourlyAverage) * 2) / 2;
+  q("#goal-remaining-hours").textContent = remaining
+    ? "Còn thiếu khoảng " + number(missingHours) + " giờ công nữa · ước tính theo lương trung bình"
+    : "Đã đạt mục tiêu" + (total > goal ? " và vượt " + money(total - goal) : "") + " 🎉";
+  if (goalWasComplete === false && ratio >= 1) celebrateGoal();
+  goalWasComplete = ratio >= 1;
   q("#jar-wave").setAttribute("d", "M18 36 C31 31 44 40 59 35 S86 31 102 36 V45 C88 41 73 41 59 45 S32 43 18 45Z");
   q("#jar-wave").style.opacity = fill ? "1" : "0";
   q("#jar-liquid").style.opacity = fill ? "1" : "0";
   document.querySelectorAll("[data-goal]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.goal) === goal)));
+}
+function celebrateGoal() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const layer = q("#goal-confetti");
+  layer.replaceChildren();
+  for (let index = 0; index < 34; index++) {
+    const piece = document.createElement("i");
+    piece.style.setProperty("--x", (Math.random() * 100) + "%");
+    piece.style.setProperty("--drift", Math.round(Math.random() * 120 - 60) + "px");
+    piece.style.setProperty("--delay", Math.random() * 260 + "ms");
+    piece.style.setProperty("--fall", (850 + Math.random() * 750) + "ms");
+    layer.append(piece);
+  }
+  setTimeout(() => layer.replaceChildren(), 1900);
 }
 function currentClockShift() { return S.rows.find(row => (row.clockState === "work" || row.clockState === "break") && !row.end); }
 function clockElapsed(shift, now = Date.now()) {
@@ -407,10 +432,12 @@ function renderTemplates() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "template-chip";
-    button.textContent = `${template.name} · ${template.start}–${template.end}`;
+    button.setAttribute("aria-label", "Ghi ca " + template.name + ", " + template.start + " đến " + template.end);
+    button.innerHTML = `<span>${safe(template.name)}</span><small>${safe(template.start)}–${safe(template.end)}</small>`;
     button.addEventListener("click", () => addShift("template", template));
     quickList.append(button);
   });
+  if (!S.templates.length) quickList.innerHTML = '<span class="template-empty">Tạo mẫu ca để thêm nhanh</span>';
   const list = q("#saved-templates");
   list.replaceChildren();
   if (!S.templates.length) {
@@ -526,7 +553,7 @@ function addShift(mode = "blank", template = null) {
     startInput?.focus();
     startInput?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
-  const message = template ? `Đã thêm ca theo mẫu “${template.name}” · kiểm tra ngày và Lễ/Tết` : mode === "repeat" && previous ? "Đã lặp giờ ca trước · kiểm tra ngày và Lễ/Tết" : "Ca mới đã thêm · nhập giờ để tính lương";
+  const message = template ? "Đã lưu ca " + template.name + " hôm nay · " + template.start + "–" + template.end : mode === "repeat" && previous ? "Đã lặp giờ ca trước · kiểm tra ngày và Lễ/Tết" : "Ca mới đã thêm · nhập giờ để tính lương";
   showToast(message);
 }
 function showToast(message, undo = false) {
