@@ -4,7 +4,6 @@ const q = selector => document.querySelector(selector);
 const money = value => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value || 0);
 const number = value => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value || 0);
 const dateKey = date => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
-const timeKey = date => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 const today = () => dateKey(new Date());
 const validTime = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value || "");
 
@@ -22,7 +21,7 @@ if ("syncUrl" in S.settings || "syncKey" in S.settings) {
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* Keep the in-memory data usable. */ }
 }
 
-let allTime = true;
+let allTime = false;
 let activeFilter = "all";
 let selectedDate = null;
 let calendarOpen = false;
@@ -88,10 +87,23 @@ function isValidDate(value) {
   const date = new Date(year, month - 1, day);
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
+function payCycle(monthValue = q("#month-filter").value || today().slice(0, 7)) {
+  const [year, month] = monthValue.split("-").map(Number);
+  const end = new Date(year, month - 1, 20, 12);
+  const start = new Date(year, month - 2, 21, 12);
+  return { start: dateKey(start), end: dateKey(end) };
+}
+function cycleDates(bounds = payCycle()) {
+  const dates = [];
+  const cursor = new Date(`${bounds.start}T12:00:00`);
+  const end = new Date(`${bounds.end}T12:00:00`);
+  while (cursor <= end) { dates.push(dateKey(cursor)); cursor.setDate(cursor.getDate() + 1); }
+  return dates;
+}
 function periodRows() {
   if (allTime) return S.rows;
-  const month = q("#month-filter").value;
-  return month ? S.rows.filter(shift => String(shift.date || "").startsWith(month)) : S.rows;
+  const bounds = payCycle();
+  return S.rows.filter(shift => String(shift.date || "") >= bounds.start && String(shift.date || "") <= bounds.end);
 }
 function visibleRows() {
   let rows = periodRows();
@@ -119,11 +131,12 @@ function save() {
 function safe(value) {
   return String(value || "").replace(/[&"<>]/g, char => ({ "&": "&amp;", '"': "&quot;", "<": "&lt;", ">": "&gt;" })[char]);
 }
-function scopeName() {
-  if (allTime || !q("#month-filter").value) return "Tất cả thời gian";
-  const [year, month] = q("#month-filter").value.split("-").map(Number);
-  return new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+function cycleName() {
+  const { start, end } = payCycle();
+  const format = value => new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${value}T12:00:00`));
+  return `Kỳ ${format(start)} – ${format(end)}`;
 }
+function scopeName() { return allTime || !q("#month-filter").value ? "Tất cả thời gian" : cycleName(); }
 function updateGoal(total) {
   const goal = Math.max(1, Number(S.settings.goal) || defaults.goal);
   const ratio = Math.max(0, total / goal);
@@ -158,10 +171,7 @@ function refreshSummary() {
   const pending = rows.length - completed.length;
   const results = completed.map(calculate);
   const total = results.reduce((sum, result) => sum + result.pay, 0);
-  const base = results.reduce((sum, result) => sum + result.basePay, 0);
-  const holidayExtra = results.reduce((sum, result) => sum + result.holidayExtra, 0);
   const nightTotal = results.reduce((sum, result) => sum + result.night, 0);
-  const nightPay = results.reduce((sum, result) => sum + result.nightPay, 0);
   const holidayCount = rows.filter(shift => shift.holiday).length;
   q("#total").textContent = money(total);
   q("#count").textContent = rows.length;
@@ -169,7 +179,7 @@ function refreshSummary() {
   q("#holiday-count").textContent = holidayCount;
   q("#scope-note").textContent = `${scopeName()} · ${completed.length} ca tính lương${pending ? ` · ${pending} ca đang nhập` : ""}`;
   q("#calc-note").textContent = `Lương ${money(Number(S.settings.rate))}/giờ · nghỉ tay ${number(Number(S.settings.break))} giờ/ca · giờ đêm +${number(Number(S.settings.bonus))}%`;
-  q("#scope-title").textContent = allTime || !q("#month-filter").value ? "Tổng lương ước tính" : "Lương ước tính trong tháng";
+  q("#scope-title").textContent = allTime || !q("#month-filter").value ? "Tổng lương ước tính" : "Lương ước tính kỳ này";
   q("#all-time").classList.toggle("active", allTime);
   q("#all-time").setAttribute("aria-pressed", String(allTime));
   q("#all-filter-count").textContent = rows.length;
@@ -287,26 +297,20 @@ function renderCalendar() {
   q("#calendar-toggle span").textContent = calendarOpen ? "Đóng lịch" : "Lịch tháng";
   q("#clear-day").hidden = !selectedDate;
   if (!calendarOpen) return;
-  let monthValue = q("#month-filter").value;
-  if (!monthValue) { monthValue = today().slice(0, 7); q("#month-filter").value = monthValue; }
-  const [year, month] = monthValue.split("-").map(Number);
-  q("#calendar-title").textContent = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+  const dates = cycleDates();
+  q("#calendar-title").textContent = cycleName();
   const grid = q("#calendar-grid");
   grid.replaceChildren();
-  const firstDay = new Date(year, month - 1, 1);
-  const offset = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const cellCount = Math.ceil((offset + daysInMonth) / 7) * 7;
-  const monthRows = S.rows.filter(shift => String(shift.date || "").startsWith(monthValue));
-  for (let index = 0; index < cellCount; index++) {
-    const date = new Date(year, month - 1, index - offset + 1);
-    const dateString = dateKey(date);
-    const dayRows = monthRows.filter(shift => shift.date === dateString);
+  const offset = (new Date(`${dates[0]}T12:00:00`).getDay() + 6) % 7;
+  for (let index = 0; index < offset; index++) { const blank = document.createElement("span"); blank.setAttribute("aria-hidden", "true"); grid.append(blank); }
+  for (const dateString of dates) {
+    const date = new Date(`${dateString}T12:00:00`);
+    const dayRows = S.rows.filter(shift => shift.date === dateString);
     const paidRows = dayRows.filter(isComplete);
     const dayTotal = paidRows.reduce((sum, shift) => sum + calculate(shift).pay, 0);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `calendar-day${date.getMonth() === month - 1 ? "" : " outside"}${dayRows.length ? " has-shifts" : ""}${dateString === today() ? " today" : ""}${dateString === selectedDate ? " selected" : ""}`;
+    button.className = `calendar-day${dayRows.length ? " has-shifts" : ""}${dateString === today() ? " today" : ""}${dateString === selectedDate ? " selected" : ""}`;
     button.setAttribute("role", "gridcell");
     button.setAttribute("aria-selected", String(dateString === selectedDate));
     button.setAttribute("aria-label", `${new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(date)}${dayRows.length ? `, ${dayRows.length} ca, ${money(dayTotal)}` : ", chưa có ca"}`);
@@ -314,7 +318,6 @@ function renderCalendar() {
     const hasNight = dayRows.some(shift => calculate(shift).night > 0);
     button.innerHTML = `<span class="calendar-number">${date.getDate()}</span>${dayRows.length ? `<span class="calendar-count">${dayRows.length} ca</span><span class="calendar-dots">${hasHoliday ? '<i class="holiday-dot" aria-label="Lễ/Tết"></i>' : ""}${hasNight ? '<i class="night-dot" aria-label="Ca đêm"></i>' : ""}</span><span class="calendar-pay">${money(dayTotal)}</span>` : ""}`;
     button.addEventListener("click", () => {
-      if (date.getMonth() !== month - 1) q("#month-filter").value = dateString.slice(0, 7);
       allTime = false;
       selectedDate = selectedDate === dateString ? null : dateString;
       render();
@@ -323,19 +326,16 @@ function renderCalendar() {
   }
 }
 function renderHeatmap() {
-  const monthValue = q("#month-filter").value || today().slice(0, 7);
-  const [year, month] = monthValue.split("-").map(Number);
-  const monthName = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
-  q("#heatmap-period").textContent = monthName;
+  const dates = cycleDates();
+  q("#heatmap-period").textContent = cycleName();
   const grid = q("#salary-heatmap");
   grid.replaceChildren();
-  const firstOffset = (new Date(year, month - 1, 1).getDay() + 6) % 7;
-  const count = new Date(year, month, 0).getDate();
-  const totals = Array.from({ length: count }, () => 0);
-  S.rows.filter(shift => isComplete(shift) && String(shift.date).startsWith(monthValue)).forEach(shift => {
-    totals[Number(shift.date.slice(-2)) - 1] += calculate(shift).pay;
+  const firstOffset = (new Date(`${dates[0]}T12:00:00`).getDay() + 6) % 7;
+  const totals = new Map(dates.map(date => [date, 0]));
+  S.rows.filter(shift => isComplete(shift) && totals.has(shift.date)).forEach(shift => {
+    totals.set(shift.date, totals.get(shift.date) + calculate(shift).pay);
   });
-  const positive = totals.filter(value => value > 0).sort((a, b) => a - b);
+  const positive = [...totals.values()].filter(value => value > 0).sort((a, b) => a - b);
   const thresholds = positive.length ? [0.25, 0.5, 0.75].map(fraction => positive[Math.min(positive.length - 1, Math.floor((positive.length - 1) * fraction))]) : [];
   for (let index = 0; index < firstOffset; index++) {
     const blank = document.createElement("span");
@@ -343,9 +343,9 @@ function renderHeatmap() {
     blank.setAttribute("aria-hidden", "true");
     grid.append(blank);
   }
-  totals.forEach((pay, index) => {
-    const day = index + 1;
-    const date = `${monthValue}-${String(day).padStart(2, "0")}`;
+  dates.forEach((date, index) => {
+    const pay = totals.get(date);
+    const day = Number(date.slice(-2));
     const level = !pay ? 0 : 1 + thresholds.filter(limit => pay > limit).length;
     const button = document.createElement("button");
     button.type = "button";
@@ -377,7 +377,10 @@ function addShift(mode = "blank", template = null) {
   };
   if (template) shift.templateName = template.name;
   S.rows.push(shift);
-  setPeriodToAll();
+  allTime = false;
+  activeFilter = "all";
+  selectedDate = null;
+  q("#month-filter").value = today().slice(0, 7);
   if (!save()) return;
   const card = [...q("#list").querySelectorAll(".shift-card")].find(item => item.dataset.shiftId === String(shift.id));
   const startInput = card?.querySelector('[data-k="start"]');

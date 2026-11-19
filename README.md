@@ -5,7 +5,8 @@
 ## Tính năng
 
 - Thêm và sửa ca thủ công; giờ chọn theo bước 30 phút, danh sách xếp ngày/giờ cũ đến mới.
-- Lịch tháng và bản đồ lương dạng heatmap: màu ô ngày đậm dần theo mức lương, chạm ngày để lọc ca.
+- Kỳ lương mặc định tính từ ngày 21 tháng trước đến hết ngày 20 của tháng được chọn. Ví dụ chọn tháng 11: kỳ 21/10–20/11.
+- Lịch kỳ lương và heatmap dạng GitHub; màu ô đậm dần theo lương ước tính trong ngày, chạm ô để lọc ca.
 - Mẫu ca, lặp giờ ca trước, hoàn tác xóa, xuất CSV và sao lưu/khôi phục JSON.
 - Hũ mục tiêu lương mặc định 2.500.000 ₫, chọn nhanh 1,5 / 2,5 / 5 triệu hoặc nhập mức khác.
 - Giao diện sáng/tối; lựa chọn được lưu trên trình duyệt.
