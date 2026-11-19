@@ -167,7 +167,8 @@ function updateGoal() {
   const percent = Math.round(ratio * 100);
   const fill = Math.min(1, ratio);
   const jar = q(".goal-jar");
-  if (lastGoalTotal !== null && total > lastGoalTotal && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  const amountChanged = lastGoalTotal === null ? fill > 0 : total !== lastGoalTotal;
+  if (amountChanged && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     jar.classList.remove("is-sloshing");
     void jar.getBoundingClientRect();
     jar.classList.add("is-sloshing");
