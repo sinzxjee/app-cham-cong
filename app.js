@@ -179,7 +179,7 @@ function updateGoal() {
   const remaining = Math.max(0, goal - total);
   const hourlyAverage = completeHours > 0 ? total / completeHours : Number(S.settings.rate) || defaults.rate;
   const missingHours = Math.ceil(remaining / Math.max(1, hourlyAverage) * 2) / 2;
-  const averageShiftHours = completed.length && completeHours > 0 ? completeHours / completed.length : 8;
+  const averageShiftHours = completed.length && completeHours > 0 ? completeHours / completed.length : 6.5;
   const shiftsNeeded = Math.ceil(missingHours / Math.max(1, averageShiftHours));
   const formatDate = value => new Intl.DateTimeFormat("vi-VN", { day: "numeric", month: "long" }).format(new Date(`${value}T12:00:00`));
   const todayDate = today();
@@ -200,7 +200,7 @@ function updateGoal() {
     const weeksLeft = remainingDays / 7;
     const hoursPerWeek = Math.ceil(missingHours / weeksLeft * 2) / 2;
     const shiftsPerWeek = Math.ceil(shiftsNeeded / weeksLeft);
-    q("#goal-plan").textContent = `Lộ trình đến ${formatDate(bounds.end)}: khoảng ${number(hoursPerWeek)} giờ/tuần · ${number(shiftsPerWeek)} ca/tuần.`;
+    q("#goal-plan").textContent = `Lộ trình đến ${formatDate(bounds.end)}: khoảng ${number(hoursPerWeek)} giờ/tuần · ${number(shiftsPerWeek)} ca/tuần. Lịch bạn gửi thường khoảng 2 ca/tuần.`;
   }
   if (goalWasComplete === false && ratio >= 1) celebrateGoal();
   goalWasComplete = ratio >= 1;
