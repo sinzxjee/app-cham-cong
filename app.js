@@ -12,6 +12,7 @@ let saved;
 try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { saved = null; }
 const S = saved && typeof saved === "object" ? saved : { settings: {}, rows: [], templates: [] };
 S.settings = { ...defaults, ...(S.settings || {}) };
+S.preferences = { theme: "light", ...(S.preferences || {}) };
 S.rows = Array.isArray(S.rows) ? S.rows.filter(row => row && typeof row === "object") : [];
 S.templates = Array.isArray(S.templates) ? S.templates.filter(template => template && typeof template === "object") : [];
 S.rows.forEach(row => { if (!row.id) row.id = crypto.randomUUID(); });
@@ -146,6 +147,63 @@ function updateGoal(total) {
   q("#jar-wave").setAttribute("d", "M18 36 C31 31 44 40 59 35 S86 31 102 36 V45 C88 41 73 41 59 45 S32 43 18 45Z");
   q("#jar-wave").style.opacity = fill ? "1" : "0";
   q("#jar-liquid").style.opacity = fill ? "1" : "0";
+  document.querySelectorAll("[data-goal]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.goal) === goal)));
+}
+function dayMonthSeries() {
+  const monthValue = q("#month-filter").value || today().slice(0, 7);
+  const [year, month] = monthValue.split("-").map(Number);
+  const count = new Date(year, month, 0).getDate();
+  const totals = Array.from({ length: count }, (_, index) => ({ label: index + 1, pay: 0 }));
+  S.rows.filter(shift => isComplete(shift) && String(shift.date).startsWith(monthValue)).forEach(shift => {
+    const day = Number(shift.date.slice(-2));
+    totals[day - 1].pay += calculate(shift).pay;
+  });
+  return totals;
+}
+function monthSeries() {
+  const current = new Date();
+  const totals = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(current.getFullYear(), current.getMonth() - 5 + index, 1);
+    return { key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`, label: new Intl.DateTimeFormat("vi-VN", { month: "short" }).format(date), pay: 0 };
+  });
+  S.rows.filter(isComplete).forEach(shift => {
+    const month = totals.find(item => item.key === String(shift.date).slice(0, 7));
+    if (month) month.pay += calculate(shift).pay;
+  });
+  return totals;
+}
+function renderChart(svg, series, goal = 0) {
+  const width = 640, height = 170, left = 48, right = 10, top = 12, bottom = 28;
+  const plotWidth = width - left - right, plotHeight = height - top - bottom;
+  const max = Math.max(goal, ...series.map(point => point.pay), 1);
+  const ticks = [0, max / 2, max];
+  const y = value => top + plotHeight - (value / max) * plotHeight;
+  const x = index => series.length <= 1 ? left + plotWidth / 2 : left + index * plotWidth / (series.length - 1);
+  const grid = ticks.map(value => `<line class="chart-gridline" x1="${left}" y1="${y(value)}" x2="${width - right}" y2="${y(value)}"/><text class="chart-y-label" x="${left - 6}" y="${y(value) + 4}" text-anchor="end">${value ? `${number(value / 1000000)}tr` : "0"}</text>`).join("");
+  const points = series.map((point, index) => `${x(index)},${y(point.pay)}`).join(" ");
+  const labels = series.map((point, index) => {
+    if (series.length > 18 && index % 3 !== 0 && index !== series.length - 1) return "";
+    return `<text class="chart-x-label" x="${x(index)}" y="${height - 5}" text-anchor="middle">${safe(point.label)}</text>`;
+  }).join("");
+  const dots = series.map((point, index) => `<circle class="chart-point" cx="${x(index)}" cy="${y(point.pay)}" r="3"><title>${safe(point.label)}: ${money(point.pay)}</title></circle>`).join("");
+  const goalLine = goal ? `<line class="chart-goal-line" x1="${left}" y1="${y(goal)}" x2="${width - right}" y2="${y(goal)}"/><text class="chart-goal-label" x="${width - right - 2}" y="${y(goal) - 4}" text-anchor="end">Mục tiêu</text>` : "";
+  svg.innerHTML = `<title>${svg.getAttribute("aria-label")}</title>${grid}${goalLine}<polyline class="chart-area" points="${left},${y(0)} ${points} ${x(series.length - 1)},${y(0)}"/><polyline class="chart-line" points="${points}"/>${dots}${labels}`;
+}
+function renderDashboard() {
+  const monthValue = q("#month-filter").value || today().slice(0, 7);
+  const [year, month] = monthValue.split("-").map(Number);
+  q("#daily-chart-title").textContent = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+  renderChart(q("#daily-chart"), dayMonthSeries());
+  renderChart(q("#monthly-chart"), monthSeries(), Number(S.settings.goal));
+}
+function applyTheme() {
+  const dark = S.preferences.theme === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const button = q("#theme-toggle");
+  button.setAttribute("aria-label", dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối");
+  button.title = dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối";
+  button.innerHTML = dark ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.7 8.7 0 0 1 8.8 3.5 8.7 8.7 0 1 0 20.5 15.2Z"/></svg>';
+  q("#theme-color-meta").content = dark ? "#141b18" : "#f7f8f6";
 }
 function refreshSummary() {
   const rows = periodRows();
@@ -176,6 +234,7 @@ function refreshSummary() {
   q("#report-night").textContent = money(nightPay);
   q("#report-total").textContent = money(total);
   updateGoal(total);
+  renderDashboard();
 }
 function rowStatus(shift) {
   if (isClockActive(shift)) return shift.clockState === "break" ? "Đang nghỉ · chưa tính lương" : "Đang làm · chưa tính lương";
@@ -367,7 +426,7 @@ function renderClock() {
   const panel = q(".clock-panel");
   panel.classList.toggle("is-running", Boolean(active));
   q("#clock-state").textContent = !active ? "Chưa vào ca" : active.clockState === "break" ? "Đang nghỉ" : "Đang làm";
-  q("#clock-elapsed").textContent = !active ? "Bắt đầu khi vào ca" : clockElapsed(active);
+  q("#clock-elapsed").textContent = !active ? "" : clockElapsed(active);
   q("#clock-note").textContent = !active ? "Giờ vào và kết thúc được ghi theo đồng hồ của điện thoại." : `Bắt đầu ${active.start}${active.breakMinutes ? ` · đã nghỉ ${number(active.breakMinutes)} phút` : ""}${active.breakStartedAt ? " · đang tính giờ nghỉ" : ""}.`;
   const primary = q("#mobile-clock-primary");
   const secondary = q("#mobile-clock-secondary");
@@ -437,6 +496,7 @@ function undoDelete() {
   save();
 }
 function render() {
+  applyTheme();
   refreshSummary();
   renderClock();
   renderTemplates();
@@ -556,6 +616,15 @@ q("#gear").addEventListener("click", () => {
   for (const key of Object.keys(defaults)) q("#" + key).value = S.settings[key];
   q("#dlg").showModal();
 });
+q("#theme-toggle").addEventListener("click", () => {
+  S.preferences.theme = S.preferences.theme === "dark" ? "light" : "dark";
+  if (persist()) { applyTheme(); showToast(`Đã chuyển sang giao diện ${S.preferences.theme === "dark" ? "tối" : "sáng"}`); }
+});
+document.querySelectorAll("[data-goal]").forEach(button => button.addEventListener("click", () => {
+  S.settings.goal = Number(button.dataset.goal);
+  save();
+  showToast(`Mục tiêu kỳ này: ${money(S.settings.goal)}`);
+}));
 q("#close-settings").addEventListener("click", () => q("#dlg").close());
 q("#cancel-settings").addEventListener("click", () => q("#dlg").close());
 q("#save").addEventListener("click", event => {

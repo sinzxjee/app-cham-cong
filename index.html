@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f7f8f6">
+  <meta name="theme-color" content="#f7f8f6" id="theme-color-meta">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Chấm công">
   <meta name="description" content="Chấm công cá nhân, tính lương ca đêm và ngày lễ. Dữ liệu lưu trong trình duyệt.">
@@ -11,14 +11,14 @@
   <link rel="icon" href="app-icon.jpg" type="image/jpeg">
   <link rel="apple-touch-icon" href="app-icon.jpg">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=6">
-  <script src="app.js?v=6" defer></script>
+  <link rel="stylesheet" href="style.css?v=7">
+  <script src="app.js?v=7" defer></script>
 </head>
 <body>
   <main class="app">
     <header class="topbar">
       <div class="brand"><img class="app-icon" src="app-icon.jpg" alt=""><h1>Chấm công</h1></div>
-      <div class="top-actions"><span class="network-status" id="network-status" role="status" hidden></span><button class="icon-button" id="gear" type="button" aria-label="Thiết lập tính lương" title="Thiết lập tính lương">
+      <div class="top-actions"><span class="network-status" id="network-status" role="status" hidden></span><button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Chuyển giao diện tối" title="Chuyển giao diện tối"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.7 8.7 0 0 1 8.8 3.5 8.7 8.7 0 1 0 20.5 15.2Z"/></svg></button><button class="icon-button" id="gear" type="button" aria-label="Thiết lập tính lương" title="Thiết lập tính lương">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 13.5 1.1.9-1.2 2.1-1.4-.5a7.5 7.5 0 0 1-1.5.9l-.2 1.5h-2.4l-.4-1.4a7.5 7.5 0 0 1-1.7 0l-.8 1.2-2.1-1.2.5-1.4a7.5 7.5 0 0 1-.9-1.5l-1.5-.2v-2.4l1.4-.4a7.5 7.5 0 0 1 0-1.7L7.1 8.6l1.2-2.1 1.4.5a7.5 7.5 0 0 1 1.5-.9l.2-1.5h2.4l.4 1.4a7.5 7.5 0 0 1 1.7 0l.8-1.2 2.1 1.2-.5 1.4a7.5 7.5 0 0 1 .9 1.5l1.5.2v2.4l-1.4.4a7.5 7.5 0 0 1 0 1.6Z"/></svg>
       </button></div>
     </header>
@@ -34,14 +34,22 @@
           <rect class="jar-neck" x="38" y="18" width="44" height="13" rx="3"/><rect class="jar-cap" x="35" y="4" width="50" height="17" rx="4"/>
           <path class="jar-shine" d="M23 85v64c0 9 5 14 13 15"/>
         </svg></div>
-        <div class="goal-copy"><span>Mục tiêu kỳ này</span><strong id="goal-percent">0%</strong><small id="goal-amount">2.500.000 ₫</small></div>
+        <div class="goal-copy"><span>Mục tiêu kỳ này</span><strong id="goal-percent">0%</strong><small id="goal-amount">2.500.000 ₫</small><div class="goal-presets" aria-label="Chọn nhanh mục tiêu"><button type="button" data-goal="1500000">1,5tr</button><button type="button" data-goal="2500000" aria-pressed="true">2,5tr</button><button type="button" data-goal="5000000">5tr</button></div></div>
         <span class="goal-meter" id="goal-meter" role="progressbar" aria-label="Tiến độ mục tiêu lương" aria-valuemin="0" aria-valuemax="2500000" aria-valuenow="0" aria-valuetext="0 phần trăm"></span>
       </div>
       <div class="overview-stats"><div><span>Ca đã ghi</span><strong id="count">0</strong></div><div><span>Giờ đêm</span><strong id="night">0</strong></div><div><span>Ca Lễ/Tết</span><strong id="holiday-count">0</strong></div></div>
     </section>
 
+    <section class="dashboard" aria-labelledby="dashboard-title">
+      <div class="dashboard-head"><div><span class="overline">TỔNG QUAN THU NHẬP</span><h2 id="dashboard-title">Dashboard lương</h2></div><span class="dashboard-goal-note">Đường gạch = mục tiêu kỳ</span></div>
+      <div class="chart-grid">
+        <article class="chart-card"><div class="chart-head"><h3>Lương theo ngày</h3><span id="daily-chart-title"></span></div><svg id="daily-chart" class="pay-chart" viewBox="0 0 640 170" role="img" aria-label="Biểu đồ lương mỗi ngày trong tháng"></svg></article>
+        <article class="chart-card"><div class="chart-head"><h3>Lương theo tháng</h3><span>6 tháng gần nhất</span></div><svg id="monthly-chart" class="pay-chart" viewBox="0 0 640 170" role="img" aria-label="Biểu đồ lương mỗi tháng sáu tháng gần đây"></svg></article>
+      </div>
+    </section>
+
     <section class="clock-panel" aria-label="Bấm giờ ca làm">
-      <div class="clock-info"><span class="clock-state" id="clock-state">Chưa vào ca</span><strong id="clock-elapsed">Bắt đầu khi vào ca</strong><span class="clock-note" id="clock-note">Giờ vào và kết thúc được ghi theo đồng hồ của điện thoại.</span></div>
+      <div class="clock-info"><span class="clock-state" id="clock-state">Chưa vào ca</span><strong id="clock-elapsed" aria-live="off"></strong><span class="clock-note" id="clock-note">Giờ vào và kết thúc được ghi theo đồng hồ của điện thoại.</span></div>
       <div class="clock-actions">
         <button class="primary" type="button" data-clock-action="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7-11-7Z"/></svg>Vào ca</button>
         <button class="secondary" type="button" data-clock-action="break" hidden>Bắt đầu nghỉ</button>
