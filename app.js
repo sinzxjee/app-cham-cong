@@ -5,6 +5,14 @@ const money = value => new Intl.NumberFormat("vi-VN", { style: "currency", curre
 const number = value => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value || 0);
 const dateKey = date => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 const timeKey = date => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+function roundedClockInTime(date) {
+  const rounded = new Date(date);
+  const minute = rounded.getMinutes();
+  const nextMark = minute % 30 === 0 ? minute : Math.ceil(minute / 30) * 30;
+  rounded.setSeconds(0, 0);
+  rounded.setMinutes(nextMark);
+  return timeKey(rounded);
+}
 const today = () => dateKey(new Date());
 const validTime = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value || "");
 
@@ -214,13 +222,15 @@ function handleClockAction() {
   const now = new Date();
   const active = currentClockShift();
   if (!active) {
-    const shift = { id: crypto.randomUUID(), date: dateKey(now), start: timeKey(now), end: "", holiday: false, clockState: "work", clockStartedAt: now.toISOString(), breakMinutes: Number(S.settings.break) * 60, breaks: [] };
+    const roundedStart = roundedClockInTime(now);
+    const actualStart = timeKey(now);
+    const shift = { id: crypto.randomUUID(), date: dateKey(now), start: roundedStart, end: "", holiday: false, clockState: "work", clockStartedAt: now.toISOString(), breakMinutes: Number(S.settings.break) * 60, breaks: [] };
     S.rows.push(shift);
     allTime = false;
     selectedDate = null;
     activeFilter = "all";
     q("#month-filter").value = dateKey(now).slice(0, 7);
-    if (save()) showToast(`Đã vào ca lúc ${shift.start}`);
+    if (save()) showToast(roundedStart === actualStart ? `Đã vào ca lúc ${shift.start}` : `Đã vào ca lúc ${shift.start} · làm tròn từ ${actualStart}`);
     return;
   }
   active.end = timeKey(now);

@@ -19,6 +19,7 @@
 
 ## Quy tắc tính hiện tại
 
+- Khi trượt vào ca, giờ bắt đầu được làm tròn lên mốc 30 phút tiếp theo; nếu trượt trong phút đầu của mốc (ví dụ 9:00:59) vẫn giữ mốc đó. Thời gian thực bắt đầu được giữ riêng để đồng hồ đếm giờ chính xác.
 - Ca qua nửa đêm được tính sang ngày kế tiếp.
 - Giờ đêm từ 22:00 đến 02:00, phụ cấp mặc định +30% trên giờ trong khoảng này.
 - Ca Lễ/Tết nhân 300% lương giờ công (cộng thêm 200%); phụ cấp đêm cộng riêng.
