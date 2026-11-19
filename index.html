@@ -11,61 +11,103 @@
   <link rel="icon" href="app-icon.jpg" type="image/jpeg">
   <link rel="apple-touch-icon" href="app-icon.jpg">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=5">
-  <script src="app.js?v=5" defer></script>
+  <link rel="stylesheet" href="style.css?v=6">
+  <script src="app.js?v=6" defer></script>
 </head>
 <body>
   <main class="app">
     <header class="topbar">
       <div class="brand"><img class="app-icon" src="app-icon.jpg" alt=""><h1>Chấm công</h1></div>
-      <button class="icon-button" id="gear" type="button" aria-label="Thiết lập tính lương" title="Thiết lập tính lương">
+      <div class="top-actions"><span class="network-status" id="network-status" role="status" hidden></span><button class="icon-button" id="gear" type="button" aria-label="Thiết lập tính lương" title="Thiết lập tính lương">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 13.5 1.1.9-1.2 2.1-1.4-.5a7.5 7.5 0 0 1-1.5.9l-.2 1.5h-2.4l-.4-1.4a7.5 7.5 0 0 1-1.7 0l-.8 1.2-2.1-1.2.5-1.4a7.5 7.5 0 0 1-.9-1.5l-1.5-.2v-2.4l1.4-.4a7.5 7.5 0 0 1 0-1.7L7.1 8.6l1.2-2.1 1.4.5a7.5 7.5 0 0 1 1.5-.9l.2-1.5h2.4l.4 1.4a7.5 7.5 0 0 1 1.7 0l.8-1.2 2.1 1.2-.5 1.4a7.5 7.5 0 0 1 .9 1.5l1.5.2v2.4l-1.4.4a7.5 7.5 0 0 1 0 1.6Z"/></svg>
-      </button>
+      </button></div>
     </header>
 
-    <section class="overview" aria-label="Tổng lương và số liệu">
+    <section class="overview" aria-label="Tổng lương và tiến độ mục tiêu">
       <div class="overview-main"><span class="overline" id="scope-title">Tổng lương ước tính</span><strong id="total">0 ₫</strong><span class="local-note" id="scope-note">Tất cả thời gian · lưu trên trình duyệt này</span><span class="calc-note" id="calc-note"></span></div>
-      <div class="overview-stats"><div><span>Ca đã ghi</span><strong id="count">0</strong></div><div><span>Giờ đêm</span><strong id="night">0</strong></div></div>
+      <div class="goal-widget">
+        <div class="goal-jar-wrap"><svg class="goal-jar" viewBox="0 0 120 180" role="img" aria-label="Hũ tiến độ mục tiêu">
+          <defs><clipPath id="jar-interior"><path d="M42 31h36c0 11 6 19 15 27 6 6 9 13 9 22v70c0 12-8 19-19 19H37c-11 0-19-7-19-19V80c0-9 3-16 9-22 9-8 15-16 15-27Z"/></clipPath></defs>
+          <path class="jar-glass" d="M39 27h42c0 12 7 21 17 30 7 6 10 14 10 24v70c0 15-10 24-25 24H37c-15 0-25-9-25-24V81c0-10 3-18 10-24 10-9 17-18 17-30Z"/>
+          <g id="jar-fill-group" class="jar-fill-group" clip-path="url(#jar-interior)"><rect id="jar-liquid" class="jar-liquid" x="18" y="31" width="84" height="138"/><path id="jar-wave" class="jar-wave" d=""/></g>
+          <path class="jar-outline" d="M39 27h42c0 12 7 21 17 30 7 6 10 14 10 24v70c0 15-10 24-25 24H37c-15 0-25-9-25-24V81c0-10 3-18 10-24 10-9 17-18 17-30Z"/>
+          <rect class="jar-neck" x="38" y="18" width="44" height="13" rx="3"/><rect class="jar-cap" x="35" y="4" width="50" height="17" rx="4"/>
+          <path class="jar-shine" d="M23 85v64c0 9 5 14 13 15"/>
+        </svg></div>
+        <div class="goal-copy"><span>Mục tiêu kỳ này</span><strong id="goal-percent">0%</strong><small id="goal-amount">2.500.000 ₫</small></div>
+        <span class="goal-meter" id="goal-meter" role="progressbar" aria-label="Tiến độ mục tiêu lương" aria-valuemin="0" aria-valuemax="2500000" aria-valuenow="0" aria-valuetext="0 phần trăm"></span>
+      </div>
+      <div class="overview-stats"><div><span>Ca đã ghi</span><strong id="count">0</strong></div><div><span>Giờ đêm</span><strong id="night">0</strong></div><div><span>Ca Lễ/Tết</span><strong id="holiday-count">0</strong></div></div>
+    </section>
+
+    <section class="clock-panel" aria-label="Bấm giờ ca làm">
+      <div class="clock-info"><span class="clock-state" id="clock-state">Chưa vào ca</span><strong id="clock-elapsed">Bắt đầu khi vào ca</strong><span class="clock-note" id="clock-note">Giờ vào và kết thúc được ghi theo đồng hồ của điện thoại.</span></div>
+      <div class="clock-actions">
+        <button class="primary" type="button" data-clock-action="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7-11-7Z"/></svg>Vào ca</button>
+        <button class="secondary" type="button" data-clock-action="break" hidden>Bắt đầu nghỉ</button>
+        <button class="secondary" type="button" data-clock-action="resume" hidden>Làm tiếp</button>
+        <button class="end-shift" type="button" data-clock-action="end" hidden>Kết thúc ca</button>
+      </div>
     </section>
 
     <section class="work-section" aria-labelledby="work-title">
-      <div class="section-head"><div><h2 id="work-title">Các ca làm</h2></div>
-        <div class="section-actions">
-          <button class="primary desktop-add" id="add" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Thêm ca</button>
-          <button class="secondary desktop-repeat" id="repeat" type="button" hidden>Lặp giờ ca trước</button>
-          <details class="more" id="more"><summary aria-label="Quản lý dữ liệu" title="Quản lý dữ liệu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></summary><div class="more-menu"><button id="csv" type="button">Xuất CSV đang xem</button><button id="backup" type="button">Sao lưu toàn bộ dữ liệu</button><button id="restore" type="button">Nhập bản sao lưu</button><button id="clear" type="button" class="delete-all">Xóa tất cả ca</button></div></details>
-          <input id="restore-file" type="file" accept="application/json,.json" hidden>
-        </div>
-      </div>
+      <div class="section-head"><h2 id="work-title">Các ca làm</h2><div class="section-actions">
+        <button class="secondary calendar-toggle" id="calendar-toggle" type="button" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg><span>Lịch tháng</span></button>
+        <button class="primary desktop-add" id="add" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Thêm ca</button>
+        <button class="secondary desktop-repeat" id="repeat" type="button" hidden>Lặp giờ ca trước</button>
+        <details class="more" id="more"><summary aria-label="Quản lý dữ liệu" title="Quản lý dữ liệu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></summary><div class="more-menu"><button id="templates-open" type="button">Quản lý mẫu ca</button><button id="csv" type="button">Xuất CSV đang xem</button><button id="backup" type="button">Sao lưu toàn bộ dữ liệu</button><button id="restore" type="button">Nhập bản sao lưu</button><button id="install-open" type="button">Cài ứng dụng / dùng offline</button><button id="clear" type="button" class="delete-all">Xóa tất cả ca</button></div></details>
+        <input id="restore-file" type="file" accept="application/json,.json" hidden>
+      </div></div>
 
       <div class="workflow-tools">
         <div class="period-controls"><button id="all-time" class="period-button active" type="button" aria-pressed="true">Toàn bộ</button><label class="month-picker"><span>Tháng</span><input id="month-filter" type="month" aria-label="Chọn tháng"></label></div>
-        <div class="quick-filters" role="group" aria-label="Lọc loại ca">
-          <button type="button" data-filter="all" aria-pressed="true">Mọi ca <span id="all-filter-count">0</span></button>
-          <button type="button" data-filter="holiday" aria-pressed="false">Lễ/Tết <span id="holiday-filter-count">0</span></button>
-          <button type="button" data-filter="night" aria-pressed="false">Có giờ đêm <span id="night-filter-count">0</span></button>
-        </div>
+        <div class="quick-filters" role="group" aria-label="Lọc loại ca"><button type="button" data-filter="all" aria-pressed="true">Mọi ca <span id="all-filter-count">0</span></button><button type="button" data-filter="holiday" aria-pressed="false">Lễ/Tết <span id="holiday-filter-count">0</span></button><button type="button" data-filter="night" aria-pressed="false">Có giờ đêm <span id="night-filter-count">0</span></button></div>
       </div>
+
+      <section class="calendar-shell" id="calendar-shell" aria-label="Lịch làm theo tháng" hidden>
+        <div class="calendar-head"><button class="icon-button" id="prev-month" type="button" aria-label="Tháng trước"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h3 id="calendar-title">Lịch tháng</h3><button class="icon-button" id="next-month" type="button" aria-label="Tháng sau"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div>
+        <div class="weekdays" aria-hidden="true"><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span></div>
+        <div class="calendar-grid" id="calendar-grid" role="grid" aria-label="Ngày trong tháng"></div>
+        <div class="calendar-legend"><span><i class="legend-dot work"></i>Có ca</span><span><i class="legend-dot holiday"></i>Lễ/Tết</span><button id="clear-day" type="button" hidden>Bỏ lọc ngày</button></div>
+      </section>
+
+      <div class="template-strip"><span class="template-label">Mẫu ca</span><div class="template-list" id="template-list"></div><button class="template-add" id="template-add" type="button" aria-label="Tạo mẫu ca mới">＋ Tạo mẫu</button></div>
+
+      <details class="pay-report" id="pay-report"><summary>Chi tiết lương trong kỳ</summary><div class="report-grid"><div><span>Lương giờ công</span><strong id="report-base">0 ₫</strong></div><div><span>Phần cộng Lễ/Tết</span><strong id="report-holiday">0 ₫</strong></div><div><span>Phụ cấp giờ đêm</span><strong id="report-night">0 ₫</strong></div><div class="report-total"><span>Tổng kỳ này</span><strong id="report-total">0 ₫</strong></div></div></details>
       <p class="view-note" id="view-note" aria-live="polite"></p>
       <div id="list" class="shift-list" aria-live="polite"></div>
     </section>
+    <footer class="app-footer">Dữ liệu chỉ lưu trên trình duyệt này · Hình bình: <a href="https://www.vecteezy.com/" target="_blank" rel="noopener noreferrer">Vecteezy.com</a></footer>
   </main>
 
-  <div class="mobile-action"><button class="primary" id="add-mobile" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Thêm ca</button><button class="secondary" id="repeat-mobile" type="button" hidden>Lặp giờ ca trước</button></div>
-
+  <div class="mobile-action" id="mobile-action"><button class="primary" id="mobile-clock-primary" type="button" data-clock-action="start">Vào ca</button><button class="secondary" id="mobile-clock-secondary" type="button" data-clock-action="add">Thêm ca</button></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toast-message"></span><button id="undo-delete" type="button" hidden>Hoàn tác</button></div>
 
   <dialog id="dlg"><form method="dialog" class="modal">
     <div class="modal-head"><h2>Thiết lập tính lương</h2><button type="button" class="icon-button close" id="close-settings" aria-label="Đóng"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
     <div class="settings-grid">
       <label>Lương mỗi giờ <span>₫</span><input id="rate" type="number" min="0" step="500" inputmode="decimal" required></label>
-      <label>Thời gian nghỉ mỗi ca <span>giờ</span><input id="break" type="number" min="0" max="8" step="0.25" inputmode="decimal" required></label>
+      <label>Thời gian nghỉ mặc định (ca nhập tay) <span>giờ</span><input id="break" type="number" min="0" max="8" step="0.25" inputmode="decimal" required></label>
       <label>Phụ cấp đêm <span>%</span><input id="bonus" type="number" min="0" step="1" inputmode="numeric" required></label>
       <label>Hệ số lễ/Tết <span>%</span><input id="holidayRate" type="number" min="100" step="1" inputmode="numeric" required></label>
+      <label>Mục tiêu lương mỗi kỳ <span>₫</span><input id="goal" type="number" min="1" step="50000" inputmode="decimal" required></label>
     </div>
-    <p class="note">Giờ đêm đang tính từ 22:00 đến 02:00. Ca Lễ/Tết được nhân hệ số và cộng phụ cấp đêm theo thiết lập.</p>
+    <p class="note">Giờ chọn bằng tay nhảy mỗi 30 phút. Giờ đêm tính từ 22:00 đến 02:00. Ca bấm giờ trừ phần nghỉ đã ghi; ca nhập tay trừ thời gian nghỉ mặc định.</p>
     <div class="modal-actions"><button type="button" class="secondary" id="cancel-settings">Hủy</button><button class="primary" id="save" type="submit">Lưu thiết lập</button></div>
+  </form></dialog>
+
+  <dialog id="template-dialog"><form method="dialog" class="modal" id="template-form">
+    <div class="modal-head"><h2>Mẫu ca làm</h2><button type="button" class="icon-button close" id="close-templates" aria-label="Đóng"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <label class="template-name">Tên mẫu<input id="template-name" maxlength="32" placeholder="Ví dụ: Ca sáng" required></label>
+    <div class="shift-fields"><label>Giờ vào<input id="template-start" type="time" step="1800" required></label><label>Giờ ra<input id="template-end" type="time" step="1800" required></label></div>
+    <button class="primary template-save" id="template-save" type="submit">Lưu mẫu ca</button>
+    <div class="saved-templates" id="saved-templates"></div>
+  </form></dialog>
+
+  <dialog id="install-dialog"><form method="dialog" class="modal">
+    <div class="modal-head"><h2>Cài ứng dụng</h2><button type="button" class="icon-button close" id="close-install" aria-label="Đóng"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <p id="install-instructions" class="note">Ứng dụng có thể chạy offline sau khi tải trang lần đầu. Trên Android, mở menu trình duyệt rồi chọn “Cài đặt ứng dụng” hoặc “Thêm vào màn hình chính”. Trên iPhone, mở nút Chia sẻ trong Safari rồi chọn “Thêm vào MH chính”.</p>
+    <div class="modal-actions"><button type="submit" class="primary">Đã hiểu</button></div>
   </form></dialog>
 </body>
 </html>
-

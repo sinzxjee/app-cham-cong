@@ -1,24 +1,30 @@
-# App Chấm Công
+# Chấm công cá nhân
 
-Web app chấm công cá nhân, tối ưu cho điện thoại. Dữ liệu được lưu trên trình duyệt và không đồng bộ lên Google Sheets.
+Ứng dụng chấm công cá nhân, tối ưu cho điện thoại. Dữ liệu và thiết lập được lưu trong `localStorage` của trình duyệt trên thiết bị hiện tại; ứng dụng không đồng bộ lên Google Sheets hay máy chủ.
 
-## Quy trình ghi ca
+## Tính năng
 
-- Thêm ca mới để nhập ngày, giờ vào, giờ ra và trạng thái Lễ/Tết.
-- Ca mới để trống giờ để tránh tạo nhầm tiền lương trước khi nhập đủ thông tin.
-- Có thể lặp giờ vào/ra từ ca hoàn tất gần nhất; ngày mới được đặt là hôm nay và trạng thái Lễ/Tết được bỏ chọn để người dùng xác nhận lại.
-- Lọc ca theo tháng, ca Lễ/Tết hoặc ca có giờ đêm.
-- Xem tổng lương theo toàn bộ dữ liệu hoặc riêng tháng được chọn.
-- Xóa từng ca có thể hoàn tác trong vài giây.
-- Xuất CSV theo danh sách đang xem; xuất và nhập JSON để sao lưu toàn bộ dữ liệu khi đổi thiết bị hoặc trình duyệt.
+- Bấm giờ vào ca, ghi thời gian nghỉ, tiếp tục và kết thúc ca.
+- Thêm ca thủ công; giờ vào/ra chọn theo bước 30 phút. Danh sách sắp xếp ngày và giờ từ cũ đến mới.
+- Lịch tháng, lọc ca ngày Lễ/Tết và ca có giờ đêm.
+- Mẫu ca, lặp ca trước, xuất CSV, sao lưu/khôi phục JSON và hoàn tác xóa một ca.
+- Bảng lương tách lương giờ công, phần cộng Lễ/Tết và phụ cấp giờ đêm.
+- Hũ mục tiêu mặc định 2.500.000 ₫; mực nước chuyển động theo phần trăm lương của kỳ đang xem. Có thể đổi mục tiêu trong Thiết lập.
+- PWA cài lên màn hình chính và dùng offline sau khi tải ứng dụng lần đầu.
 
-## Quy tắc tính lương mặc định
+## Quy tắc tính hiện tại
 
-- Lương giờ: 26.500 ₫.
-- Nghỉ giữa ca: 0,5 giờ.
-- Phụ cấp giờ đêm: 30% cho khoảng 22:00–02:00.
-- Ca Lễ/Tết: 300% tiền giờ công, cộng phụ cấp giờ đêm nếu có.
-- Có thể thay đổi các giá trị trong phần Thiết lập tính lương.
+- Ca qua nửa đêm được tính sang ngày kế tiếp.
+- Giờ đêm từ 22:00 đến 02:00, phụ cấp mặc định +30% trên giờ thuộc khoảng này.
+- Đánh dấu Lễ/Tết áp dụng tổng lương 300% (lương cơ bản cộng thêm 200%); phụ cấp đêm được cộng riêng.
+- Ca nhập tay trừ giờ nghỉ mặc định trong Thiết lập. Ca bấm giờ trừ các khoảng nghỉ đã ghi.
 
-Mở `index.html` hoặc triển khai bằng GitHub Pages/static hosting.
+Các mức có thể điều chỉnh trong Thiết lập. Kết quả là ước tính theo cấu hình cá nhân, không tự tra lịch nghỉ lễ Việt Nam.
 
+## Chạy cục bộ
+
+Mở `index.html` để xem giao diện. Để cài PWA và dùng service worker, phục vụ thư mục này qua HTTPS hoặc localhost.
+
+## Ghi công hình minh họa
+
+Hình bình trong hũ mục tiêu dựa trên hình Vecteezy do người dùng cung cấp. Trang nguồn: [Vecteezy.com](https://www.vecteezy.com/).
