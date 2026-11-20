@@ -23,7 +23,7 @@ S.settings = { ...defaults, ...(S.settings || {}) };
 S.preferences = { theme: "light", ...(S.preferences || {}) };
 S.preferences.palette = ["cobalt", "emerald", "matcha", "monochrome"].includes(S.preferences.palette) ? S.preferences.palette : "emerald";
 S.preferences.bentoOrder = Array.isArray(S.preferences.bentoOrder) ? S.preferences.bentoOrder : [];
-S.notes = S.notes && typeof S.notes === "object" ? S.notes : {};
+delete S.notes;
 S.rows = Array.isArray(S.rows) ? S.rows.filter(row => row && typeof row === "object") : [];
 S.templates = Array.isArray(S.templates) ? S.templates.filter(template => template && typeof template === "object") : [];
 S.rows.forEach(row => { if (!row.id) row.id = crypto.randomUUID(); });
@@ -41,7 +41,6 @@ let undoState = null;
 let toastTimer;
 let deferredInstallPrompt = null;
 let activeTab = "today";
-let noteTimer;
 let goalWasComplete = null;
 let lastGoalTotal = null;
 
@@ -302,7 +301,6 @@ function renderTodayShifts() {
     list.append(card);
   });
 }
-function cycleNoteKey() { const bounds = payCycle(); return `${bounds.start}_${bounds.end}`; }
 function renderStats() {
   const rows = periodRows();
   const complete = rows.filter(isComplete);
@@ -404,18 +402,13 @@ function renderStreak() {
 }
 function applyBentoOrder() {
   const grid = q("#bento-grid");
-  const order = S.preferences.bentoOrder;
+  const order = S.preferences.bentoOrder.map(name => name === "note" ? "message-import" : name);
   const rank = new Map(order.map((name, index) => [name, index]));
   [...grid.children].sort((a, b) => (rank.get(a.dataset.bentoCard) ?? 999) - (rank.get(b.dataset.bentoCard) ?? 999)).forEach(card => grid.append(card));
 }
 function saveBentoOrder() {
   S.preferences.bentoOrder = [...q("#bento-grid").querySelectorAll("[data-bento-card]")].map(card => card.dataset.bentoCard);
   persist();
-}
-function renderNote() {
-  const key = cycleNoteKey();
-  const field = q("#work-note");
-  if (document.activeElement !== field) field.value = S.notes[key] || "";
 }
 function applyTheme() {
   const dark = S.preferences.theme === "dark";
@@ -454,7 +447,6 @@ function refreshSummary() {
   renderHeatmap();
   renderStats();
   renderWeekChart();
-  renderNote();
 }
 function rowStatus(shift) {
   if (isClockActive(shift)) return shift.clockState === "break" ? "Đang nghỉ · chưa tính lương" : "Đang làm · chưa tính lương";
@@ -759,7 +751,7 @@ function exportCSV() {
   downloadFile(`cham-cong-${allTime ? "tat-ca" : q("#month-filter").value}.csv`, "text/csv;charset=utf-8", "\ufeff" + rows.map(row => row.map(csvCell).join(",")).join("\r\n"));
 }
 function exportBackup() {
-  const backup = { app: "cham-cong-mobile", version: 3, exportedAt: new Date().toISOString(), settings: S.settings, preferences: S.preferences, notes: S.notes, templates: S.templates, rows: S.rows };
+  const backup = { app: "cham-cong-mobile", version: 3, exportedAt: new Date().toISOString(), settings: S.settings, preferences: S.preferences, templates: S.templates, rows: S.rows };
   downloadFile(`sao-luu-cham-cong-${today()}.json`, "application/json;charset=utf-8", JSON.stringify(backup, null, 2));
   showToast("Đã tạo bản sao lưu toàn bộ dữ liệu");
 }
@@ -802,7 +794,6 @@ function importBackup(file) {
       S.templates.push(...newTemplates);
       S.settings = nextSettings;
       if (backup.preferences && typeof backup.preferences === "object") S.preferences = { ...S.preferences, ...backup.preferences };
-      if (backup.notes && typeof backup.notes === "object") S.notes = { ...S.notes, ...backup.notes };
       setPeriodToAll();
       if (save()) showToast(`Đã nhập ${additions.length} ca và ${newTemplates.length} mẫu`);
     } catch {
@@ -842,16 +833,16 @@ let messageImportCommitted = false;
 let messageImportDrafts = [];
 let messageImportGlobalWarnings = [];
 const messageImportDialog = q("#message-import-dialog");
-function openMessageImport(trigger) {
+function openMessageImport(trigger, initialText = "") {
   messageImportTrigger = trigger;
   messageImportCommitted = false;
   messageImportDrafts = [];
   messageImportGlobalWarnings = [];
-  q("#message-import-text").value = "";
+  q("#message-import-text").value = initialText;
   q("#message-import-input-step").hidden = false;
   q("#message-import-preview-step").hidden = true;
   q("#message-import-dialog").showModal();
-  requestAnimationFrame(() => q("#message-import-text").focus());
+  if (!initialText.trim()) requestAnimationFrame(() => q("#message-import-text").focus());
 }
 function showImportNotes(element, title, lines) {
   element.replaceChildren();
@@ -1049,13 +1040,25 @@ function commitMessageSchedule() {
   requestAnimationFrame(() => q("#work-title").focus());
   showToast("Đã thêm " + added.length + " ca", true);
 }
-if (!navigator.clipboard?.readText) q("#paste-schedule").hidden = true;
+if (!navigator.clipboard?.readText) {
+  q("#paste-schedule").hidden = true;
+  q("#quick-import-paste").hidden = true;
+}
 messageImportDialog.addEventListener("close", () => {
   if (messageImportCommitted) { messageImportCommitted = false; return; }
   if (messageImportTrigger?.isConnected) messageImportTrigger.focus();
 });
 q("#add-from-message-today").addEventListener("click", event => openMessageImport(event.currentTarget));
 q("#add-from-message-history").addEventListener("click", () => { q("#more").open = false; openMessageImport(q("#more summary")); });
+q("#quick-import-analyze").addEventListener("click", event => {
+  const text = q("#quick-import-text").value.trim();
+  openMessageImport(event.currentTarget, text);
+  if (text) analyzeMessageSchedule();
+});
+q("#quick-import-paste").addEventListener("click", async () => {
+  try { q("#quick-import-text").value = await navigator.clipboard.readText(); q("#quick-import-text").focus(); }
+  catch { showToast("Không đọc được clipboard. Hãy dán trực tiếp vào ô lịch."); }
+});
 q("#close-message-import").addEventListener("click", () => messageImportDialog.close());
 q("#cancel-message-import").addEventListener("click", () => messageImportDialog.close());
 q("#cancel-message-preview").addEventListener("click", () => messageImportDialog.close());
@@ -1074,19 +1077,6 @@ q("#commit-message-import").addEventListener("click", commitMessageSchedule);
 document.addEventListener("click", event => { if (!q("#more").contains(event.target)) q("#more").open = false; });
 document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => activateTab(button.dataset.tab)));
 q("#add-today").addEventListener("click", () => addShift());
-q("#work-note").addEventListener("input", event => {
-  const key = cycleNoteKey();
-  S.notes[key] = event.target.value;
-  q("#note-save-status").textContent = "Lưu…";
-  clearTimeout(noteTimer);
-  noteTimer = setTimeout(() => {
-    q("#note-save-status").textContent = persist() ? "Đã lưu trên trình duyệt này" : "Không lưu được";
-  }, 350);
-});
-q("#work-note").addEventListener("blur", () => {
-  clearTimeout(noteTimer);
-  q("#note-save-status").textContent = persist() ? "Đã lưu trên trình duyệt này" : "Không lưu được";
-});
 q("#bento-grid").addEventListener("pointerdown", event => {
   const handle = event.target.closest("[data-drag-handle]");
   const card = handle?.closest("[data-bento-card]");
