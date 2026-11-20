@@ -420,7 +420,7 @@ function applyTheme() {
   button.title = dark ? "Chuyển giao diện sáng" : "Chuyển giao diện tối";
   button.innerHTML = dark ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.7 8.7 0 0 1 8.8 3.5 8.7 8.7 0 1 0 20.5 15.2Z"/></svg>';
   q("#theme-color-meta").content = dark ? "#141b18" : "#ffffff";
-  document.querySelectorAll("[data-palette]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.palette === S.preferences.palette)));
+  document.querySelectorAll(".palette-option[data-palette]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.palette === S.preferences.palette)));
 }
 function refreshSummary() {
   const rows = periodRows();
@@ -1177,7 +1177,7 @@ q("#gear").addEventListener("click", () => {
   applyTheme();
   q("#dlg").showModal();
 });
-document.querySelectorAll("[data-palette]").forEach(button => button.addEventListener("click", () => {
+document.querySelectorAll(".palette-option[data-palette]").forEach(button => button.addEventListener("click", () => {
   S.preferences.palette = button.dataset.palette;
   if (persist()) { applyTheme(); showToast(`Đã chọn giao diện ${button.dataset.paletteName}`); }
 }));
