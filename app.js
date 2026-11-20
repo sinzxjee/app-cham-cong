@@ -359,7 +359,7 @@ function renderWeekChart() {
 function renderStreak() {
   const thresholds = [1, 2, 4, 8, 12];
   const names = ["Mèo nghỉ ngơi", "Mèo tập sự", "Mèo thám hiểm", "Mèo pháp sư", "Mèo hoàng gia"];
-  const artwork = ["stage_1_pixel_lv1_transparent_tight.png", "stage_2_pixel_lv2_transparent_tight.png", "stage_3_pixel_lv3_transparent_tight.png", "stage_4_pixel_lv4_tabby_transparent_tight.png", "OIG1.jpg"];
+  const artwork = ["streak-level-1.png", "streak-level-2.png", "streak-level-3.png", "streak-level-4.png", "streak-level-5.jpg"];
   const weekDates = weekRange();
   const completedWeeks = new Set(S.rows.filter(shift => isComplete(shift) && shift.date <= today()).map(shift => {
     const date = new Date(`${shift.date}T12:00:00`);
