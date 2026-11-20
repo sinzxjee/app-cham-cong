@@ -1004,7 +1004,8 @@ function analyzeMessageSchedule() {
   messageImportGlobalWarnings = result.shifts.length > 60 ? ["Tìm thấy hơn 60 ca. Hãy rà kỹ danh sách trước khi thêm."] : [];
   messageImportDrafts = result.shifts.map(shift => {
     const exact = S.rows.some(row => row.date === shift.date && row.start === shift.start && row.end === shift.end);
-    return { shift: { ...shift }, baseWarnings: [...shift.warnings], selected: !exact, autoDuplicateDeselected: exact };
+    const breakMinutes = Number.isFinite(shift.breakMinutes) ? shift.breakMinutes : 30;
+    return { shift: { ...shift, breakMinutes }, baseWarnings: [...shift.warnings], selected: !exact, autoDuplicateDeselected: exact };
   });
   showImportNotes(q("#message-import-assumptions"), "Giả định ngày", result.assumptions || []);
   showImportNotes(q("#message-import-off"), "Ngày nghỉ (không thêm)", (result.off || []).map(item => item.date + " · " + item.source));
@@ -1077,35 +1078,50 @@ q("#commit-message-import").addEventListener("click", commitMessageSchedule);
 document.addEventListener("click", event => { if (!q("#more").contains(event.target)) q("#more").open = false; });
 document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => activateTab(button.dataset.tab)));
 q("#add-today").addEventListener("click", () => addShift());
-q("#bento-grid").addEventListener("pointerdown", event => {
+const bentoGrid = q("#bento-grid");
+let bentoDragState = null;
+bentoGrid.addEventListener("pointerdown", event => {
   const handle = event.target.closest("[data-drag-handle]");
   const card = handle?.closest("[data-bento-card]");
-  if (!handle || !card || event.button > 0) return;
+  if (!handle || !card || (event.pointerType === "mouse" && event.button !== 0)) return;
+  bentoDragState = { pointerId: event.pointerId, card, order: [...bentoGrid.children] };
   card.setPointerCapture?.(event.pointerId);
   card.classList.add("dragging");
-  card.dataset.dragPointer = String(event.pointerId);
+  handle.setAttribute("aria-grabbed", "true");
   event.preventDefault();
 });
-q("#bento-grid").addEventListener("pointermove", event => {
-  const card = event.target.closest("[data-bento-card]");
-  if (!card?.classList.contains("dragging") || card.dataset.dragPointer !== String(event.pointerId)) return;
+bentoGrid.addEventListener("pointermove", event => {
+  const card = bentoDragState?.card;
+  if (!card || bentoDragState.pointerId !== event.pointerId) return;
   const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-bento-card]");
   if (!target || target === card) return;
   const bounds = target.getBoundingClientRect();
-  target.insertAdjacentElement(event.clientY < bounds.top + bounds.height / 2 ? "beforebegin" : "afterend", card);
+  const sourceBounds = card.getBoundingClientRect();
+  const sameRow = Math.abs(sourceBounds.top - bounds.top) < Math.min(sourceBounds.height, bounds.height) / 2;
+  const before = sameRow ? event.clientX < bounds.left + bounds.width / 2 : event.clientY < bounds.top + bounds.height / 2;
+  if (before && card.nextElementSibling === target) return;
+  if (!before && target.nextElementSibling === card) return;
+  target.insertAdjacentElement(before ? "beforebegin" : "afterend", card);
 });
-q("#bento-grid").addEventListener("pointerup", event => {
-  const card = [...q("#bento-grid").children].find(item => item.dataset.dragPointer === String(event.pointerId));
-  if (!card) return;
+bentoGrid.addEventListener("pointerup", event => {
+  const state = bentoDragState;
+  if (!state || state.pointerId !== event.pointerId) return;
+  const { card, order } = state;
   card.classList.remove("dragging");
-  delete card.dataset.dragPointer;
-  saveBentoOrder();
+  card.querySelector("[data-drag-handle]")?.setAttribute("aria-grabbed", "false");
+  bentoDragState = null;
+  const changed = order.some((item, index) => bentoGrid.children[index] !== item);
+  if (changed) { saveBentoOrder(); showToast("Đã đổi vị trí thẻ"); }
 });
-q("#bento-grid").addEventListener("pointercancel", event => {
-  const card = [...q("#bento-grid").children].find(item => item.dataset.dragPointer === String(event.pointerId));
-  if (card) { card.classList.remove("dragging"); delete card.dataset.dragPointer; }
+bentoGrid.addEventListener("pointercancel", event => {
+  const state = bentoDragState;
+  if (!state || state.pointerId !== event.pointerId) return;
+  state.order.forEach(card => bentoGrid.append(card));
+  state.card.classList.remove("dragging");
+  state.card.querySelector("[data-drag-handle]")?.setAttribute("aria-grabbed", "false");
+  bentoDragState = null;
 });
-q("#bento-grid").addEventListener("keydown", event => {
+bentoGrid.addEventListener("keydown", event => {
   if (!event.target.closest("[data-drag-handle]") || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
   event.preventDefault();
   const card = event.target.closest("[data-bento-card]");
