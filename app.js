@@ -356,6 +356,52 @@ function renderWeekChart() {
   q("#week-chart").innerHTML = `<title id="week-chart-title">Lương theo ngày trong tuần</title>${emptyState}<line class="week-chart-baseline" x1="18" y1="106" x2="410" y2="106"/>${bars}`;
   q("#week-chart-data").replaceChildren(...dates.map((date, index) => { const item = document.createElement("li"); item.textContent = `${new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(new Date(`${date}T12:00:00`))}: ${money(totals[index])}`; return item; }));
 }
+function renderStreak() {
+  const thresholds = [1, 2, 4, 8, 12];
+  const names = ["Mèo nghỉ ngơi", "Mèo tập sự", "Mèo thám hiểm", "Mèo pháp sư", "Mèo hoàng gia"];
+  const artwork = ["stage_1_pixel_lv1_transparent_tight.png", "stage_2_pixel_lv2_transparent_tight.png", "stage_3_pixel_lv3_transparent_tight.png", "stage_4_pixel_lv4_tabby_transparent_tight.png", "OIG1.jpg"];
+  const weekDates = weekRange();
+  const completedWeeks = new Set(S.rows.filter(shift => isComplete(shift) && shift.date <= today()).map(shift => {
+    const date = new Date(`${shift.date}T12:00:00`);
+    date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    return dateKey(date);
+  }));
+  let cursor = weekDates[0];
+  const currentWeekWorked = completedWeeks.has(cursor);
+  if (!currentWeekWorked) {
+    const previous = new Date(`${cursor}T12:00:00`);
+    previous.setDate(previous.getDate() - 7);
+    cursor = dateKey(previous);
+  }
+  let streak = 0;
+  while (completedWeeks.has(cursor)) {
+    streak++;
+    const previous = new Date(`${cursor}T12:00:00`);
+    previous.setDate(previous.getDate() - 7);
+    cursor = dateKey(previous);
+  }
+  const levelIndex = thresholds.reduce((level, threshold, index) => streak >= threshold ? index : level, -1);
+  const level = Math.max(0, levelIndex);
+  const nextThreshold = thresholds[levelIndex + 1];
+  const progress = nextThreshold ? Math.min(100, streak / nextThreshold * 100) : 100;
+  const image = q("#streak-level-image");
+  image.src = `./assets/${artwork[level]}`;
+  image.alt = `Mèo streak cấp ${level + 1}: ${names[level]}`;
+  image.parentElement.classList.toggle("is-jpg", level === 4);
+  q("#streak-weeks").textContent = `${streak} ${streak === 1 ? "tuần" : "tuần"}`;
+  q("#streak-level-name").textContent = `Cấp ${level + 1} · ${names[level]}`;
+  const progressBar = q("#streak-progress");
+  progressBar.setAttribute("aria-valuenow", String(Math.round(progress)));
+  progressBar.setAttribute("aria-valuemax", "100");
+  progressBar.setAttribute("aria-valuetext", nextThreshold ? `${streak} trên ${nextThreshold} tuần tới cấp tiếp theo` : "Đã đạt cấp tối đa");
+  q("#streak-progress-fill").style.width = `${progress}%`;
+  q("#streak-progress-note").textContent = nextThreshold ? `Còn ${Math.max(0, nextThreshold - streak)} tuần để lên cấp tiếp theo` : "Đã đạt cấp cao nhất";
+  q("#streak-status").textContent = streak === 0
+    ? "Ghi một ca hoàn tất trong tuần để bắt đầu. Ngày nghỉ không ảnh hưởng streak."
+    : currentWeekWorked
+      ? "Tuần này đã ghi ca hoàn tất — streak đang tiếp tục."
+      : "Tuần này chưa ghi ca hoàn tất; chuỗi trước vẫn được giữ trong tuần đang diễn ra.";
+}
 function applyBentoOrder() {
   const grid = q("#bento-grid");
   const order = S.preferences.bentoOrder;
@@ -596,11 +642,15 @@ function setPeriodToAll() {
 function addShift(mode = "blank", template = null) {
   let previous = null;
   if (mode === "repeat") previous = S.rows.filter(isComplete).sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.start).localeCompare(String(a.start)))[0];
+  const imported = mode === "message" ? template : null;
   const shift = {
-    id: crypto.randomUUID(), date: today(), start: template?.start || previous?.start || "", end: template?.end || previous?.end || "", holiday: false
+    id: crypto.randomUUID(), date: imported?.date || today(), start: imported?.start || (mode === "message" ? "" : template?.start || previous?.start || ""), end: imported?.end || (mode === "message" ? "" : template?.end || previous?.end || ""), holiday: false
   };
-  if (template) shift.templateName = template.name;
+  if (mode === "message" && Number.isFinite(imported?.breakMinutes)) shift.breakMinutes = Math.max(0, imported.breakMinutes);
+  if (mode === "message" && imported?.template) shift.templateName = imported.template;
+  if (mode === "template" && template) shift.templateName = template.name;
   S.rows.push(shift);
+  if (mode === "message") return shift;
   allTime = false;
   activeFilter = "all";
   selectedDate = null;
@@ -631,6 +681,21 @@ function removeShift(shift) {
 }
 function undoDelete() {
   if (!undoState) return;
+  if (undoState.type === "batch") {
+    const beforeRows = S.rows;
+    const batch = undoState;
+    const ids = new Set(undoState.ids);
+    S.rows = S.rows.filter(shift => !ids.has(shift.id));
+    undoState = null;
+    clearTimeout(toastTimer);
+    q("#toast").hidden = true;
+    if (!save()) {
+      S.rows = beforeRows;
+      undoState = batch;
+      showToast("Không thể hoàn tác vì chưa lưu được thay đổi.", true);
+    }
+    return;
+  }
   S.rows.splice(Math.min(undoState.index, S.rows.length), 0, undoState.shift);
   undoState = null;
   clearTimeout(toastTimer);
@@ -641,6 +706,7 @@ function render() {
   applyTheme();
   applyBentoOrder();
   refreshSummary();
+  renderStreak();
   renderClock();
   renderTodayShifts();
   renderTemplates();
@@ -770,6 +836,240 @@ function installApp() {
   }
   q("#install-dialog").showModal();
 }
+
+let messageImportTrigger = null;
+let messageImportCommitted = false;
+let messageImportDrafts = [];
+let messageImportGlobalWarnings = [];
+const messageImportDialog = q("#message-import-dialog");
+function openMessageImport(trigger) {
+  messageImportTrigger = trigger;
+  messageImportCommitted = false;
+  messageImportDrafts = [];
+  messageImportGlobalWarnings = [];
+  q("#message-import-text").value = "";
+  q("#message-import-input-step").hidden = false;
+  q("#message-import-preview-step").hidden = true;
+  q("#message-import-dialog").showModal();
+  requestAnimationFrame(() => q("#message-import-text").focus());
+}
+function showImportNotes(element, title, lines) {
+  element.replaceChildren();
+  element.hidden = !lines.length;
+  if (!lines.length) return;
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  const list = document.createElement("ul");
+  lines.forEach(line => { const item = document.createElement("li"); item.textContent = line; list.append(item); });
+  element.append(heading, list);
+}
+function importInterval(shift) {
+  if (!isValidDate(shift.date) || !validTime(shift.start) || !validTime(shift.end)) return null;
+  const [year, month, day] = shift.date.split("-").map(Number);
+  const base = Date.UTC(year, month - 1, day) / 60000;
+  const startMinute = minutes(shift.start);
+  let endMinute = minutes(shift.end);
+  if (endMinute <= startMinute) endMinute += 1440;
+  return { start: base + startMinute, end: base + endMinute };
+}
+function importOverlaps(shift) {
+  const interval = importInterval(shift);
+  if (!interval) return [];
+  return S.rows.filter(existing => {
+    if (!isComplete(existing)) return false;
+    const other = importInterval(existing);
+    return other && interval.start < other.end && other.start < interval.end;
+  });
+}
+function importWarnings(item) {
+  const shift = item.shift;
+  const warnings = [...item.baseWarnings];
+  if (!isValidDate(shift.date)) warnings.push("Ngày không hợp lệ.");
+  else {
+    const [year, month, day] = shift.date.split("-").map(Number);
+    const [todayYear, todayMonth, todayDay] = today().split("-").map(Number);
+    const dayDistance = Math.round((Date.UTC(year, month - 1, day) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / 86400000);
+    if (dayDistance < -90) warnings.push("Ngày đã qua hơn 90 ngày, hãy kiểm tra.");
+    if (dayDistance > 365) warnings.push("Ngày cách hôm nay hơn một năm, hãy kiểm tra.");
+  }
+  const interval = importInterval(shift);
+  if (interval && interval.end - interval.start > 16 * 60) warnings.push("Ca dài hơn 16 giờ, hãy kiểm tra.");
+  const overlaps = importOverlaps(shift);
+  if (overlaps.length) {
+    const exact = overlaps.some(row => row.date === shift.date && row.start === shift.start && row.end === shift.end);
+    warnings.push(exact ? "Đã có ca ngày này (trùng hoàn toàn)." : "Đã có ca ngày này; giờ làm đang chồng với ca đã lưu.");
+  }
+  const current = importInterval(shift);
+  if (current) messageImportDrafts.forEach(otherItem => {
+    if (otherItem === item) return;
+    const other = importInterval(otherItem.shift);
+    if (other && current.start < other.end && other.start < current.end) {
+      warnings.push("Trùng giờ với ca " + otherItem.shift.date + " " + otherItem.shift.start + "–" + otherItem.shift.end + ".");
+    }
+  });
+  return [...new Set(warnings)];
+}
+function updateImportSelectionCount() {
+  const count = messageImportDrafts.filter(item => item.selected).length;
+  q("#commit-message-import").textContent = "Thêm " + count + " ca";
+  q("#commit-message-import").disabled = count === 0;
+  q("#message-import-selected").textContent = "Đã chọn " + count + "/" + messageImportDrafts.length + " ca.";
+}
+function renderImportRows() {
+  const list = q("#message-import-rows");
+  list.replaceChildren();
+  messageImportDrafts.forEach((item, index) => {
+    const shift = item.shift;
+    const warnings = importWarnings(item);
+    const card = document.createElement("article");
+    card.className = "import-shift" + (warnings.length ? " has-warning" : "");
+    const header = document.createElement("div");
+    header.className = "import-shift-head";
+    const checkLabel = document.createElement("label");
+    checkLabel.className = "import-select";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = item.selected;
+    checkbox.setAttribute("aria-label", "Chọn ca " + (index + 1) + " ngày " + shift.date);
+    checkbox.addEventListener("change", () => { item.selected = checkbox.checked; updateImportSelectionCount(); });
+    const checkText = document.createElement("span");
+    checkText.textContent = "Thêm ca " + (index + 1);
+    checkLabel.append(checkbox, checkText);
+    header.append(checkLabel);
+    if (shift.overnight || (validTime(shift.start) && validTime(shift.end) && minutes(shift.end) <= minutes(shift.start))) {
+      const overnight = document.createElement("span");
+      overnight.className = "import-overnight";
+      overnight.textContent = "Qua đêm";
+      header.append(overnight);
+    }
+    const fields = document.createElement("div");
+    fields.className = "import-shift-fields";
+    const addField = (labelText, type, value, field, step) => {
+      const label = document.createElement("label");
+      label.textContent = labelText;
+      const input = document.createElement("input");
+      input.type = type;
+      input.value = value || "";
+      input.dataset.field = field;
+      input.dataset.index = String(index);
+      if (type === "time") input.step = String(step || 1800);
+      if (type === "number") { input.min = "0"; input.max = "960"; input.step = "15"; input.inputMode = "numeric"; }
+      input.setAttribute("aria-label", labelText + " ca " + (index + 1));
+      input.addEventListener("change", () => {
+        shift[field] = type === "number" ? Number(input.value) : input.value;
+        if (field === "date" || field === "start" || field === "end") {
+          if (validTime(shift.start) && validTime(shift.end)) shift.overnight = minutes(shift.end) <= minutes(shift.start);
+          const overlaps = importOverlaps(shift);
+          const exact = overlaps.some(row => row.date === shift.date && row.start === shift.start && row.end === shift.end);
+          if (item.autoDuplicateDeselected && !exact) { item.selected = true; item.autoDuplicateDeselected = false; }
+          else if (exact && !item.autoDuplicateDeselected) { item.selected = false; item.autoDuplicateDeselected = true; }
+        }
+        renderImportRows();
+        const next = list.querySelector('[data-index="' + index + '"][data-field="' + field + '"]');
+        next?.focus();
+        updateImportSelectionCount();
+      });
+      label.append(input);
+      fields.append(label);
+    };
+    addField("Ngày", "date", shift.date, "date");
+    addField("Giờ vào", "time", shift.start, "start");
+    addField("Giờ ra", "time", shift.end, "end");
+    if (shift.breakMinutes !== undefined) addField("Nghỉ (phút)", "number", shift.breakMinutes, "breakMinutes", 15);
+    const source = document.createElement("p");
+    source.className = "import-source";
+    source.textContent = "Tin nhắn: " + shift.source;
+    card.append(header, fields, source);
+    if (shift.template) {
+      const template = document.createElement("p");
+      template.className = "import-source";
+      template.textContent = "Mẫu ca: " + shift.template;
+      card.append(template);
+    }
+    if (warnings.length) {
+      const warningList = document.createElement("ul");
+      warningList.className = "import-shift-warnings";
+      warnings.forEach(warning => { const row = document.createElement("li"); row.textContent = "⚠ " + warning; warningList.append(row); });
+      card.append(warningList);
+    }
+    list.append(card);
+  });
+  updateImportSelectionCount();
+}
+function analyzeMessageSchedule() {
+  const text = q("#message-import-text").value.trim();
+  if (!text) {
+    q("#message-import-preview-step").hidden = true;
+    q("#message-import-input-step").hidden = false;
+    q("#message-import-input-status").textContent = "Dán nội dung lịch làm trước khi phân tích.";
+    q("#message-import-text").focus();
+    return;
+  }
+  if (!window.ScheduleParser?.parseSchedule) {
+    q("#message-import-input-status").textContent = "Chưa tải được bộ đọc lịch. Hãy tải lại ứng dụng.";
+    return;
+  }
+  const result = window.ScheduleParser.parseSchedule(text, { templates: S.templates, today: today(), snapMinutes: 30 });
+  messageImportGlobalWarnings = result.shifts.length > 60 ? ["Tìm thấy hơn 60 ca. Hãy rà kỹ danh sách trước khi thêm."] : [];
+  messageImportDrafts = result.shifts.map(shift => {
+    const exact = S.rows.some(row => row.date === shift.date && row.start === shift.start && row.end === shift.end);
+    return { shift: { ...shift }, baseWarnings: [...shift.warnings], selected: !exact, autoDuplicateDeselected: exact };
+  });
+  showImportNotes(q("#message-import-assumptions"), "Giả định ngày", result.assumptions || []);
+  showImportNotes(q("#message-import-off"), "Ngày nghỉ (không thêm)", (result.off || []).map(item => item.date + " · " + item.source));
+  showImportNotes(q("#message-import-ignored"), "Dòng chưa hiểu", result.ignored || []);
+  showImportNotes(q("#message-import-warnings"), "Lưu ý", messageImportGlobalWarnings);
+  const warningCount = messageImportDrafts.filter(item => importWarnings(item).length).length;
+  const summary = messageImportDrafts.length
+    ? "Tìm thấy " + messageImportDrafts.length + " ca, " + warningCount + " ca có cảnh báo" + (result.off.length ? ", " + result.off.length + " ngày nghỉ" : "") + (result.ignored.length ? ", " + result.ignored.length + " dòng chưa hiểu" : "") + "."
+    : "Chưa nhận ra ca nào. Hãy thử dạng “T2 14h-22h, T4 6h-14h” hoặc chọn mẫu ca đã lưu.";
+  q("#message-import-status").textContent = summary;
+  q("#message-import-input-step").hidden = true;
+  q("#message-import-preview-step").hidden = false;
+  renderImportRows();
+  requestAnimationFrame(() => q("#message-import-preview-title").focus());
+}
+function commitMessageSchedule() {
+  const selected = messageImportDrafts.filter(item => item.selected);
+  if (!selected.length) return;
+  if (selected.some(item => !isValidDate(item.shift.date) || !validTime(item.shift.start) || !validTime(item.shift.end))) {
+    q("#message-import-status").textContent = "Hãy kiểm tra ngày và giờ của các ca đã chọn.";
+    return;
+  }
+  const beforeRows = S.rows.slice();
+  const beforeAllTime = allTime;
+  const added = selected.map(item => addShift("message", item.shift));
+  setPeriodToAll();
+  q("#month-filter").value = selected[0].shift.date.slice(0, 7);
+  if (!save()) { S.rows = beforeRows; allTime = beforeAllTime; return; }
+  undoState = { type: "batch", ids: added.map(shift => shift.id) };
+  messageImportCommitted = true;
+  messageImportDialog.close();
+  activateTab("history");
+  requestAnimationFrame(() => q("#work-title").focus());
+  showToast("Đã thêm " + added.length + " ca", true);
+}
+if (!navigator.clipboard?.readText) q("#paste-schedule").hidden = true;
+messageImportDialog.addEventListener("close", () => {
+  if (messageImportCommitted) { messageImportCommitted = false; return; }
+  if (messageImportTrigger?.isConnected) messageImportTrigger.focus();
+});
+q("#add-from-message-today").addEventListener("click", event => openMessageImport(event.currentTarget));
+q("#add-from-message-history").addEventListener("click", () => { q("#more").open = false; openMessageImport(q("#more summary")); });
+q("#close-message-import").addEventListener("click", () => messageImportDialog.close());
+q("#cancel-message-import").addEventListener("click", () => messageImportDialog.close());
+q("#cancel-message-preview").addEventListener("click", () => messageImportDialog.close());
+q("#edit-message-import").addEventListener("click", () => {
+  q("#message-import-preview-step").hidden = true;
+  q("#message-import-input-step").hidden = false;
+  requestAnimationFrame(() => q("#message-import-text").focus());
+});
+q("#paste-schedule").addEventListener("click", async () => {
+  try { q("#message-import-text").value = await navigator.clipboard.readText(); q("#message-import-text").focus(); }
+  catch { showToast("Không đọc được clipboard. Hãy dán nội dung vào ô bằng thao tác Dán của điện thoại."); }
+});
+q("#analyze-schedule").addEventListener("click", analyzeMessageSchedule);
+q("#commit-message-import").addEventListener("click", commitMessageSchedule);
 
 document.addEventListener("click", event => { if (!q("#more").contains(event.target)) q("#more").open = false; });
 document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => activateTab(button.dataset.tab)));
@@ -1009,4 +1309,3 @@ setInterval(renderClock, 1000);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => showToast("Chế độ offline chưa khả dụng trên trình duyệt này."));
 }
-
